@@ -33,309 +33,272 @@ const bl=new Blob([JSON.stringify(m)],{type:'application/json'});
 const lk=document.createElement('link');lk.rel='manifest';lk.href=URL.createObjectURL(bl);
 document.head.appendChild(lk);
 </script>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Serif+KR:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@700&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
-  --gold:#C9A236;--gold2:#E8C96A;--goldd:#C9A23625;
-  --bg:#0E0E10;--surf:#16161A;--card:#1E1E26;--card2:#27272F;
-  --bord:#2C2C3A;--bord2:#3C3C4A;
-  --text:#F0EEE8;--muted:#7A7882;--hint:#46444F;
-  --green:#4CAF7D;--red:#E05555;--amber:#E8A935;--blue:#4D9DE0;
+  --ak:#F5A623;--ak2:#FFD07B;--akd:#F5A62315;
+  --bg:#F7F8FA;--surf:#FFFFFF;--card:#FFFFFF;--card2:#F0F2F5;
+  --bord:#E2E5EA;--bord2:#CDD1D8;
+  --text:#111318;--sub:#444B58;--hint:#8B939F;
+  --grn:#1A9E5A;--red:#D93025;--amb:#D97706;--blu:#1A6FD4;
   --safe-t:env(safe-area-inset-top,0px);
   --safe-b:env(safe-area-inset-bottom,16px);
 }
 html,body{height:100%;overflow:hidden;background:var(--bg)}
-body{font-family:'DM Mono','Apple SD Gothic Neo',monospace;color:var(--text);-webkit-font-smoothing:antialiased}
+body{font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-serif;color:var(--text);-webkit-font-smoothing:antialiased;font-size:16px;line-height:1.5}
 #app{width:100%;max-width:430px;height:100%;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);position:relative}
-
-/* STATUS */
-.sb{padding:calc(var(--safe-t) + 6px) 18px 4px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;min-height:42px}
-.sb-time{font-size:15px;font-weight:600;letter-spacing:.02em}
-.sb-r{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)}
-
-/* HEADER */
-.hd{padding:6px 18px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:.5px solid var(--bord);flex-shrink:0}
-.logo{font-family:'Noto Serif KR',serif;font-size:18px;font-weight:700;color:var(--gold)}
-.logo small{display:block;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);font-weight:400;letter-spacing:.1em;margin-top:1px}
-.hd-pill{font-size:9px;letter-spacing:.1em;padding:3px 10px;border:.5px solid var(--gold);color:var(--gold);border-radius:20px}
-
-/* SCREENS */
+.sb{padding:calc(var(--safe-t) + 8px) 20px 6px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:var(--surf);min-height:44px}
+.sb-time{font-size:16px;font-weight:700;color:var(--text)}
+.sb-r{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--hint)}
+.hd{padding:10px 20px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bord);flex-shrink:0;background:var(--surf)}
+.logo{font-family:'Noto Serif KR',serif;font-size:20px;font-weight:700;color:var(--ak);letter-spacing:-.01em}
+.logo small{display:block;font-family:'Noto Sans KR',sans-serif;font-size:11px;color:var(--hint);font-weight:400;margin-top:2px}
+.hd-pill{font-size:10px;font-weight:700;padding:4px 12px;background:var(--akd);color:var(--ak);border-radius:20px}
 .sc{display:none;flex:1;flex-direction:column;overflow:hidden}
 .sc.on{display:flex}
-
-/* ══ CAMERA ══ */
 .cam-view{flex:1;position:relative;background:#000;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:200px}
 #vid{width:100%;height:100%;object-fit:cover;display:block}
 .cam-ui{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
 .frame{width:83%;max-width:310px;aspect-ratio:1.74;position:relative}
-.frame::before{content:'';position:absolute;inset:0;border:1.5px solid var(--gold);border-radius:8px;opacity:.6;animation:fp 2.5s ease-in-out infinite}
-@keyframes fp{0%,100%{opacity:.3}50%{opacity:.85}}
-.c{position:absolute;width:20px;height:20px;border-color:var(--gold2);border-style:solid}
-.c.tl{top:-1px;left:-1px;border-width:2.5px 0 0 2.5px;border-radius:5px 0 0 0}
-.c.tr{top:-1px;right:-1px;border-width:2.5px 2.5px 0 0;border-radius:0 5px 0 0}
-.c.bl{bottom:-1px;left:-1px;border-width:0 0 2.5px 2.5px;border-radius:0 0 0 5px}
-.c.br{bottom:-1px;right:-1px;border-width:0 2.5px 2.5px 0;border-radius:0 0 5px 0}
-.sl{position:absolute;inset:0;border-radius:6px;overflow:hidden}
-.sl::after{content:'';position:absolute;left:0;right:0;height:2px;top:0;background:linear-gradient(90deg,transparent,var(--gold),transparent);animation:sm 2.3s ease-in-out infinite;opacity:.7}
-@keyframes sm{0%{top:0;opacity:0}10%{opacity:.7}90%{opacity:.7}100%{top:100%;opacity:0}}
-.cam-hint{position:absolute;bottom:-34px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--gold2);letter-spacing:.07em;background:#00000099;padding:4px 14px;border-radius:20px;white-space:nowrap}
-.no-cam{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:2rem;background:var(--surf);text-align:center}
-.no-cam-ico{font-size:44px;opacity:.35}
-.no-cam-t{font-size:13px;color:var(--muted);line-height:1.9}
-.no-cam-s{font-size:12px;color:var(--gold);line-height:1.7}
-.cam-bot{background:var(--surf);border-top:.5px solid var(--bord);padding:14px 24px calc(var(--safe-b) + 6px);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.ico-btn{width:48px;height:48px;border-radius:50%;background:var(--card);border:.5px solid var(--bord2);display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;transition:transform .12s,background .15s}
-.ico-btn:active{transform:scale(.88);background:var(--bord)}
+.frame::before{content:'';position:absolute;inset:0;border:2px solid var(--ak);border-radius:10px;opacity:.75;animation:fp 2.5s ease-in-out infinite}
+@keyframes fp{0%,100%{opacity:.4}50%{opacity:1}}
+.c{position:absolute;width:22px;height:22px;border-color:var(--ak2);border-style:solid}
+.c.tl{top:-1px;left:-1px;border-width:3px 0 0 3px;border-radius:6px 0 0 0}
+.c.tr{top:-1px;right:-1px;border-width:3px 3px 0 0;border-radius:0 6px 0 0}
+.c.bl{bottom:-1px;left:-1px;border-width:0 0 3px 3px;border-radius:0 0 0 6px}
+.c.br{bottom:-1px;right:-1px;border-width:0 3px 3px 0;border-radius:0 0 6px 0}
+.sl{position:absolute;inset:0;border-radius:8px;overflow:hidden}
+.sl::after{content:'';position:absolute;left:0;right:0;height:2px;top:0;background:linear-gradient(90deg,transparent,var(--ak),transparent);animation:sm 2.3s ease-in-out infinite;opacity:.85}
+@keyframes sm{0%{top:0;opacity:0}10%{opacity:.85}90%{opacity:.85}100%{top:100%;opacity:0}}
+.cam-hint{position:absolute;bottom:-38px;left:50%;transform:translateX(-50%);font-size:13px;font-weight:500;color:#fff;background:#00000088;padding:6px 18px;border-radius:20px;white-space:nowrap}
+.no-cam{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:2rem;background:var(--card2);text-align:center}
+.no-cam-ico{font-size:52px;opacity:.3}
+.no-cam-t{font-size:15px;color:var(--sub);line-height:1.8;font-weight:500}
+.no-cam-s{font-size:14px;color:var(--ak);line-height:1.7}
+.cam-bot{background:var(--surf);border-top:1px solid var(--bord);padding:16px 28px calc(var(--safe-b) + 8px);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.ico-btn{width:54px;height:54px;border-radius:50%;background:var(--card2);border:1px solid var(--bord);display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;transition:transform .12s,background .15s}
+.ico-btn:active{transform:scale(.88);background:var(--bord2)}
 .sh-wrap{display:flex;align-items:center;justify-content:center;flex:1}
-.sh-ring{width:74px;height:74px;border-radius:50%;border:2.5px solid var(--bord2);display:flex;align-items:center;justify-content:center}
-.sh-btn{width:58px;height:58px;border-radius:50%;background:var(--gold);border:none;cursor:pointer;font-size:24px;transition:transform .12s,opacity .12s;display:flex;align-items:center;justify-content:center}
-.sh-btn:active{transform:scale(.87);opacity:.78}
-
-/* ══ PROCESSING ══ */
-.proc{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1.5rem;gap:22px}
-#proc-img{width:240px;border-radius:10px;border:.5px solid var(--bord);opacity:.6}
-.proc-ttl{font-family:'Noto Serif KR',serif;font-size:15px;color:var(--text);text-align:center;letter-spacing:.04em}
-.proc-list{width:100%;max-width:290px}
-.ps{display:flex;align-items:center;gap:11px;padding:8px 0;font-size:12px;color:var(--hint);border-bottom:.5px solid var(--bord);transition:color .3s}
+.sh-ring{width:80px;height:80px;border-radius:50%;border:3px solid var(--bord2);display:flex;align-items:center;justify-content:center}
+.sh-btn{width:64px;height:64px;border-radius:50%;background:var(--ak);border:none;cursor:pointer;font-size:28px;transition:transform .12s,opacity .12s;display:flex;align-items:center;justify-content:center}
+.sh-btn:active{transform:scale(.87);opacity:.8}
+.proc{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1.5rem;gap:24px;background:var(--bg)}
+#proc-img{width:240px;border-radius:12px;border:1px solid var(--bord);opacity:.65}
+.proc-ttl{font-family:'Noto Serif KR',serif;font-size:18px;font-weight:700;color:var(--text);text-align:center}
+.proc-list{width:100%;max-width:290px;background:var(--surf);border-radius:14px;overflow:hidden;border:1px solid var(--bord)}
+.ps{display:flex;align-items:center;gap:12px;padding:13px 16px;font-size:14px;color:var(--hint);border-bottom:1px solid var(--bord);transition:color .3s}
 .ps:last-child{border-bottom:none}
-.ps.act{color:var(--gold)}
-.ps.dn{color:var(--green)}
-.pn{width:22px;height:22px;border-radius:50%;border:1px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;font-weight:500}
-.ps.dn .pn{font-size:11px}
+.ps.act{color:var(--ak);background:var(--akd);font-weight:500}
+.ps.dn{color:var(--grn)}
+.pn{width:24px;height:24px;border-radius:50%;border:1.5px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;font-weight:700}
 .pg-wrap{width:100%;max-width:290px}
-.pg{height:2px;background:var(--bord);border-radius:2px;overflow:hidden}
-.pg-fill{height:100%;background:var(--gold);width:0%;transition:width .45s ease;border-radius:2px}
-.pg-lbl{font-size:10px;color:var(--muted);letter-spacing:.06em;text-align:center;margin-top:6px}
-
-/* ══ RESULT ══ */
-.res-scroll{flex:1;overflow-y:auto;padding:16px 18px;-webkit-overflow-scrolling:touch}
+.pg{height:4px;background:var(--bord);border-radius:4px;overflow:hidden}
+.pg-fill{height:100%;background:var(--ak);width:0%;transition:width .45s ease;border-radius:4px}
+.pg-lbl{font-size:13px;color:var(--hint);text-align:center;margin-top:8px}
+.res-scroll{flex:1;overflow-y:auto;padding:20px;-webkit-overflow-scrolling:touch;background:var(--bg)}
 .res-scroll::-webkit-scrollbar{display:none}
-.card-thumb{width:100%;border-radius:10px;display:block;border:.5px solid var(--bord);margin-bottom:16px;max-height:180px;object-fit:cover}
-.c-head{display:flex;align-items:center;gap:14px;margin-bottom:20px}
-.av{width:56px;height:56px;border-radius:50%;background:var(--card);border:1.5px solid var(--gold);display:flex;align-items:center;justify-content:center;font-family:'Noto Serif KR',serif;font-size:19px;font-weight:700;color:var(--gold);flex-shrink:0}
-.c-nm{font-family:'Noto Serif KR',serif;font-size:21px;font-weight:700;color:var(--text);margin-bottom:4px}
-.c-tl{font-size:10px;color:var(--gold);letter-spacing:.12em;text-transform:uppercase}
-.c-co{font-size:12px;color:var(--muted);margin-top:3px}
-.sec-lbl{font-size:9px;letter-spacing:.14em;color:var(--hint);text-transform:uppercase;margin-bottom:8px;display:block}
-.flist{margin-bottom:20px}
-.fi{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:.5px solid var(--bord)}
+.card-thumb{width:100%;border-radius:12px;display:block;border:1px solid var(--bord);margin-bottom:18px;max-height:180px;object-fit:cover}
+.c-head{display:flex;align-items:center;gap:16px;margin-bottom:20px;background:var(--surf);border-radius:16px;padding:16px;border:1px solid var(--bord)}
+.av{width:60px;height:60px;border-radius:50%;background:var(--akd);border:2px solid var(--ak);display:flex;align-items:center;justify-content:center;font-family:'Noto Serif KR',serif;font-size:22px;font-weight:700;color:var(--ak);flex-shrink:0}
+.c-nm{font-family:'Noto Serif KR',serif;font-size:22px;font-weight:700;color:var(--text);margin-bottom:5px}
+.c-tl{font-size:12px;color:var(--ak);font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.c-co{font-size:14px;color:var(--sub);margin-top:4px}
+.sec-lbl{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--hint);text-transform:uppercase;margin-bottom:10px;display:block}
+.flist{margin-bottom:22px;background:var(--surf);border-radius:16px;border:1px solid var(--bord);overflow:hidden}
+.fi{display:flex;align-items:center;gap:13px;padding:14px 16px;border-bottom:1px solid var(--bord)}
 .fi:last-child{border-bottom:none}
-.fic{width:30px;height:30px;border-radius:8px;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.fic{width:36px;height:36px;border-radius:10px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
 .fb{flex:1;min-width:0}
-.fl{font-size:9px;color:var(--muted);letter-spacing:.07em;margin-bottom:2px}
-.fv{font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fv input{width:100%;background:transparent;border:none;outline:none;font-family:'DM Mono',monospace;font-size:13px;color:var(--text);padding:0}
-.ctag{font-size:9px;padding:2px 7px;border-radius:10px;flex-shrink:0;letter-spacing:.04em}
-.ch{background:#4CAF7D18;color:var(--green);border:.5px solid #4CAF7D44}
-.cm{background:#E8A93518;color:var(--amber);border:.5px solid #E8A93544}
-.cl{background:#E0555518;color:var(--red);border:.5px solid #E0555544}
-
-/* INSIGHT */
-.ins-box{background:var(--card);border:.5px solid var(--bord);border-radius:14px;padding:14px;margin-bottom:18px}
-.ins-hd{font-size:10px;letter-spacing:.1em;color:var(--gold);margin-bottom:10px;display:flex;align-items:center;gap:6px}
-.ir{display:flex;gap:8px;margin-bottom:7px;align-items:flex-start}
+.fl{font-size:11px;color:var(--hint);font-weight:500;margin-bottom:3px}
+.fv{font-size:15px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fv input{width:100%;background:transparent;border:none;outline:none;font-family:'Noto Sans KR',sans-serif;font-size:15px;color:var(--text);padding:0}
+.ctag{font-size:10px;font-weight:700;padding:3px 9px;border-radius:10px;flex-shrink:0}
+.ch{background:#1A9E5A18;color:var(--grn)}
+.cm{background:#D9770618;color:var(--amb)}
+.cl{background:#D9302518;color:var(--red)}
+.ins-box{background:var(--surf);border:1px solid var(--bord);border-radius:16px;padding:16px;margin-bottom:20px}
+.ins-hd{font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--ak);margin-bottom:12px}
+.ir{display:flex;gap:10px;margin-bottom:10px;align-items:flex-start}
 .ir:last-child{margin-bottom:0}
-.ik{font-size:9px;color:var(--muted);width:54px;flex-shrink:0;padding-top:2px;letter-spacing:.05em}
-.iv{font-size:11px;color:var(--text);line-height:1.65;flex:1}
-.pb{display:inline-block;font-size:10px;font-weight:500;padding:2px 10px;border-radius:10px;letter-spacing:.06em}
-.ph{background:#4CAF7D1A;color:var(--green);border:.5px solid #4CAF7D55}
-.pm{background:#E8A9351A;color:var(--amber);border:.5px solid #E8A93555}
-.pl{background:#4D9DE01A;color:var(--blue);border:.5px solid #4D9DE055}
-
-/* TAGS */
-.tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px}
-.tag{font-size:10px;padding:4px 11px;border-radius:20px;background:var(--card);border:.5px solid var(--bord);color:var(--muted);cursor:pointer;transition:all .15s;letter-spacing:.04em}
-.tag.on{background:var(--goldd);color:var(--gold2);border-color:var(--gold)}
-
-/* ACTION BAR */
-.abar{background:var(--surf);border-top:.5px solid var(--bord);padding:12px 16px calc(var(--safe-b) + 6px);flex-shrink:0}
-.btn-main{width:100%;padding:14px;border-radius:12px;background:var(--gold);border:none;cursor:pointer;font-family:'DM Mono',monospace;font-size:13px;font-weight:500;color:#0E0E10;letter-spacing:.04em;margin-bottom:8px;transition:opacity .15s;display:flex;align-items:center;justify-content:center;gap:7px}
-.btn-main:active{opacity:.8}
+.ik{font-size:12px;color:var(--hint);font-weight:700;width:58px;flex-shrink:0;padding-top:1px}
+.iv{font-size:14px;color:var(--text);line-height:1.6;flex:1}
+.pb{display:inline-block;font-size:11px;font-weight:700;padding:3px 12px;border-radius:10px}
+.ph{background:#1A9E5A18;color:var(--grn)}
+.pm{background:#D9770618;color:var(--amb)}
+.pl{background:#1A6FD418;color:var(--blu)}
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
+.tag{font-size:13px;font-weight:500;padding:6px 14px;border-radius:20px;background:var(--surf);border:1px solid var(--bord);color:var(--sub);cursor:pointer;transition:all .15s}
+.tag.on{background:var(--akd);color:var(--ak);border-color:var(--ak)}
+.abar{background:var(--surf);border-top:1px solid var(--bord);padding:14px 20px calc(var(--safe-b) + 8px);flex-shrink:0}
+.btn-main{width:100%;padding:16px;border-radius:14px;background:var(--ak);border:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif;font-size:16px;font-weight:700;color:#fff;margin-bottom:10px;transition:opacity .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-main:active{opacity:.82}
 .brow{display:flex;gap:8px}
-.bsub{flex:1;padding:11px 4px;border-radius:10px;background:var(--card);border:.5px solid var(--bord2);font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);cursor:pointer;text-align:center;transition:background .15s;letter-spacing:.02em}
-.bsub:active{background:var(--bord)}
-
-/* ══ LIST ══ */
-.list-top{padding:12px 18px;border-bottom:.5px solid var(--bord);flex-shrink:0}
-.list-tr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-.list-ttl{font-family:'Noto Serif KR',serif;font-size:17px}
-.list-cnt{font-size:11px;color:var(--muted)}
-.srch{display:flex;align-items:center;gap:9px;background:var(--card);border:.5px solid var(--bord);border-radius:10px;padding:9px 13px}
-.srch input{flex:1;background:transparent;border:none;outline:none;font-family:'DM Mono',monospace;font-size:13px;color:var(--text)}
+.bsub{flex:1;padding:13px 4px;border-radius:12px;background:var(--card2);border:1px solid var(--bord);font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:500;color:var(--sub);cursor:pointer;text-align:center;transition:background .15s}
+.bsub:active{background:var(--bord2)}
+.list-top{padding:14px 20px;border-bottom:1px solid var(--bord);flex-shrink:0;background:var(--surf)}
+.list-tr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.list-ttl{font-family:'Noto Serif KR',serif;font-size:20px;font-weight:700;color:var(--text)}
+.list-cnt{font-size:14px;color:var(--hint)}
+.srch{display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--bord);border-radius:12px;padding:11px 16px}
+.srch input{flex:1;background:transparent;border:none;outline:none;font-family:'Noto Sans KR',sans-serif;font-size:15px;color:var(--text)}
 .srch input::placeholder{color:var(--hint)}
-.clist{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.clist{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;background:var(--bg)}
 .clist::-webkit-scrollbar{display:none}
-.crow{display:flex;align-items:center;gap:13px;padding:12px 18px;cursor:pointer;transition:background .12s;border-bottom:.5px solid var(--bord)}
-.crow:active{background:var(--card)}
-.cav{width:44px;height:44px;border-radius:50%;background:var(--card);border:1px solid var(--bord2);display:flex;align-items:center;justify-content:center;font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:var(--gold);flex-shrink:0}
+.crow-wrap{position:relative;overflow:hidden;background:var(--surf);border-bottom:1px solid var(--bord)}
+.crow-wrap:last-child{border-bottom:none}
+.del-bg{position:absolute;right:0;top:0;bottom:0;width:84px;background:var(--red);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;font-size:12px;font-weight:700;color:#fff;cursor:pointer}
+.del-bg-ico{font-size:22px;line-height:1}
+.crow{display:flex;align-items:center;gap:14px;padding:14px 20px;cursor:pointer;transition:transform .25s ease,background .12s;background:var(--surf);will-change:transform;touch-action:pan-y}
+.crow.swiped{transform:translateX(-84px)}
+.crow.deleting{transform:translateX(-110%);opacity:0;transition:transform .3s ease,opacity .3s}
+.cav{width:50px;height:50px;border-radius:50%;background:var(--akd);border:2px solid var(--ak);display:flex;align-items:center;justify-content:center;font-family:'Noto Serif KR',serif;font-size:17px;font-weight:700;color:var(--ak);flex-shrink:0}
 .ci{flex:1;min-width:0}
-.cn{font-size:13px;color:var(--text);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cs{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cnew{font-size:9px;padding:2px 7px;border-radius:10px;background:#4CAF7D18;color:var(--green);border:.5px solid #4CAF7D44;flex-shrink:0}
-.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:3rem;text-align:center}
-.empty-ico{font-size:48px;opacity:.2}
-.empty-t{font-size:13px;color:var(--muted);line-height:1.9}
-
-/* ══ SETTINGS ══ */
-.set-scroll{flex:1;overflow-y:auto;padding:16px 18px;-webkit-overflow-scrolling:touch}
+.cn{font-size:16px;font-weight:700;color:var(--text);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cs{font-size:13px;color:var(--hint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cnew{font-size:10px;font-weight:700;padding:3px 9px;border-radius:10px;background:#1A9E5A18;color:var(--grn);flex-shrink:0}
+.del-btn{width:38px;height:38px;border-radius:50%;background:#D9302514;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;transition:transform .12s}
+.del-btn:active{transform:scale(.88)}
+.edit-toggle{font-size:14px;font-weight:700;color:var(--ak);padding:7px 18px;border-radius:20px;border:2px solid var(--ak);background:transparent;cursor:pointer}
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:3rem;text-align:center;background:var(--bg)}
+.empty-ico{font-size:56px;opacity:.2}
+.empty-t{font-size:15px;color:var(--hint);line-height:1.9}
+.set-scroll{flex:1;overflow-y:auto;padding:20px;-webkit-overflow-scrolling:touch;background:var(--bg)}
 .set-scroll::-webkit-scrollbar{display:none}
-.set-sec{margin-bottom:22px}
-.set-sec-ttl{font-size:10px;color:var(--hint);letter-spacing:.14em;text-transform:uppercase;margin-bottom:9px;display:block}
-.set-card{background:var(--card);border:.5px solid var(--bord);border-radius:14px;overflow:hidden}
-.set-row{display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:.5px solid var(--bord);cursor:pointer;transition:background .12s}
+.set-sec{margin-bottom:24px}
+.set-sec-ttl{font-size:12px;font-weight:700;color:var(--hint);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;display:block}
+.set-card{background:var(--surf);border:1px solid var(--bord);border-radius:16px;overflow:hidden}
+.set-row{display:flex;align-items:center;gap:14px;padding:16px;border-bottom:1px solid var(--bord);cursor:pointer;transition:background .12s}
 .set-row:last-child{border-bottom:none}
 .set-row:active{background:var(--card2)}
-.si{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
-.si.go{background:var(--goldd)}
-.si.bl{background:#4D9DE01A}
-.si.gr{background:#4CAF7D18}
-.si.rd{background:#E0555518}
+.si{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.si.go{background:var(--akd)}
+.si.bl{background:#1A6FD418}
+.si.gr{background:#1A9E5A18}
+.si.rd{background:#D9302518}
 .set-lbl{flex:1}
-.set-lbl-t{font-size:13px;color:var(--text)}
-.set-lbl-s{font-size:11px;color:var(--muted);margin-top:1px}
-.sarr{color:var(--hint);font-size:14px}
-
-/* API KEY BOX */
-.api-box{background:var(--card);border:.5px solid var(--bord);border-radius:14px;padding:14px}
-.api-lbl{font-size:10px;color:var(--muted);letter-spacing:.08em;margin-bottom:6px;display:block}
-.api-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
-.api-inp{flex:1;background:var(--card2);border:.5px solid var(--bord2);border-radius:9px;padding:9px 12px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none}
+.set-lbl-t{font-size:15px;font-weight:500;color:var(--text)}
+.set-lbl-s{font-size:13px;color:var(--hint);margin-top:2px}
+.sarr{color:var(--hint);font-size:18px}
+.api-box{background:var(--surf);border:1px solid var(--bord);border-radius:16px;padding:18px}
+.api-lbl{font-size:12px;font-weight:700;color:var(--hint);letter-spacing:.06em;margin-bottom:8px;display:block}
+.api-row{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+.api-inp{flex:1;background:var(--card2);border:1px solid var(--bord);border-radius:10px;padding:13px 14px;font-family:'Noto Sans KR',sans-serif;font-size:15px;color:var(--text);outline:none}
 .api-inp::placeholder{color:var(--hint)}
-.api-inp:focus{border-color:var(--gold)}
-.api-save{padding:9px 14px;background:var(--gold);border:none;border-radius:9px;font-family:'DM Mono',monospace;font-size:12px;font-weight:500;color:#0E0E10;cursor:pointer;white-space:nowrap;transition:opacity .15s}
+.api-inp:focus{border-color:var(--ak)}
+.api-save{padding:13px 20px;background:var(--ak);border:none;border-radius:10px;font-family:'Noto Sans KR',sans-serif;font-size:15px;font-weight:700;color:#fff;cursor:pointer;white-space:nowrap;transition:opacity .15s}
 .api-save:active{opacity:.8}
-.api-note{font-size:10px;color:var(--muted);line-height:1.75}
-.api-note a{color:var(--gold);text-decoration:none}
-.api-st{font-size:11px;margin-top:8px;padding:7px 10px;border-radius:9px;display:none}
-.ok{background:#4CAF7D14;color:var(--green);border:.5px solid #4CAF7D44}
-.er{background:#E0555514;color:var(--red);border:.5px solid #E0555544}
-
-/* STEPS GUIDE */
-.steps-guide{background:var(--card);border:.5px solid var(--bord);border-radius:14px;padding:14px}
-.sg-step{display:flex;gap:12px;margin-bottom:12px;align-items:flex-start}
+.api-note{font-size:13px;color:var(--hint);line-height:1.8}
+.api-note a{color:var(--ak);text-decoration:none}
+.api-st{font-size:13px;margin-top:10px;padding:10px 14px;border-radius:10px;display:none;line-height:1.6}
+.ok{background:#1A9E5A12;color:var(--grn)}
+.er{background:#D9302512;color:var(--red)}
+.steps-guide{background:var(--surf);border:1px solid var(--bord);border-radius:16px;padding:18px}
+.sg-step{display:flex;gap:14px;margin-bottom:16px;align-items:flex-start}
 .sg-step:last-child{margin-bottom:0}
-.sg-num{width:22px;height:22px;border-radius:50%;background:var(--goldd);color:var(--gold);font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
-.sg-txt{font-size:12px;color:var(--text);line-height:1.7;flex:1}
-.sg-txt a{color:var(--gold);text-decoration:none}
-.sg-txt code{font-family:'DM Mono',monospace;font-size:11px;background:var(--card2);padding:1px 6px;border-radius:4px;color:var(--gold2)}
-
-/* BOTTOM NAV */
-.bnav{display:flex;background:var(--surf);border-top:.5px solid var(--bord);padding:8px 0 calc(var(--safe-b) + 4px);flex-shrink:0}
-.nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0;color:var(--hint);font-size:9px;letter-spacing:.06em;border:none;background:none;transition:color .15s}
-.nb.on{color:var(--gold)}
-.ni{font-size:22px;line-height:1}
-
-/* MODAL */
-.modal{position:fixed;inset:0;background:#00000099;z-index:500;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
-.modal.on{opacity:1;pointer-events:all}
-.msheet{background:var(--surf);border-radius:22px 22px 0 0;width:100%;max-width:430px;padding:0 0 calc(var(--safe-b) + 12px);transform:translateY(100%);transition:transform .3s ease;max-height:85vh;display:flex;flex-direction:column}
-.modal.on .msheet{transform:translateY(0)}
-.mhandle{width:36px;height:4px;background:var(--bord2);border-radius:2px;margin:12px auto 14px;flex-shrink:0}
-.mttl{font-family:'Noto Serif KR',serif;font-size:17px;padding:0 20px 12px;border-bottom:.5px solid var(--bord);flex-shrink:0}
-.mbody{padding:16px 20px;overflow-y:auto}
-.exp-pre{background:var(--card);border:.5px solid var(--bord);border-radius:10px;padding:12px 14px;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);line-height:1.85;white-space:pre-wrap;max-height:260px;overflow-y:auto}
-.mact{display:flex;gap:8px;margin-top:14px}
-.mbtn{flex:1;padding:12px;border-radius:10px;border:.5px solid var(--bord2);background:var(--card);font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);cursor:pointer;text-align:center;transition:background .15s}
-.mbtn.gold{background:var(--gold);border-color:var(--gold);color:#0E0E10;font-weight:500}
-.mbtn:active{opacity:.8}
-
-/* TOAST */
-.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--card2);border:.5px solid var(--bord2);border-radius:22px;padding:9px 20px;font-size:12px;color:var(--text);letter-spacing:.04em;pointer-events:none;opacity:0;transition:opacity .25s;z-index:999;white-space:nowrap;max-width:88%}
-.toast.on{opacity:1}
-.spin{display:inline-block;width:13px;height:13px;border:1.5px solid #fff2;border-top-color:var(--gold);border-radius:50%;animation:sp .6s linear infinite;vertical-align:middle;margin-right:5px}
-@keyframes sp{to{transform:rotate(360deg)}}
-
-/* SEND MODAL */
-.send-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
-.send-btn{display:flex;flex-direction:column;align-items:center;gap:7px;padding:14px 8px;background:var(--card);border:.5px solid var(--bord);border-radius:14px;cursor:pointer;transition:all .15s;border:none}
-.send-btn:active{transform:scale(.93);background:var(--card2)}
-.send-ico{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
-.send-lbl{font-size:10px;color:var(--muted);letter-spacing:.04em;text-align:center;line-height:1.4}
-.si-email{background:#4D9DE01A}
-.si-sms{background:#4CAF7D18}
-.si-kakao{background:#FAE10018}
-.si-copy{background:var(--goldd)}
-.si-vcard{background:#E8A93518}
-.si-qr{background:#E0555518}
-.send-preview{background:var(--card);border:.5px solid var(--bord);border-radius:10px;padding:12px;margin-bottom:12px}
-.sp-row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
-.sp-row:last-child{margin-bottom:0}
-.sp-key{font-size:10px;color:var(--muted);width:48px;flex-shrink:0;letter-spacing:.04em}
-.sp-val{font-size:12px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.send-msg-wrap{margin-bottom:12px}
-.send-msg-lbl{font-size:10px;color:var(--muted);letter-spacing:.08em;margin-bottom:6px;display:block}
-.send-msg-inp{width:100%;background:var(--card2);border:.5px solid var(--bord2);border-radius:10px;padding:10px 12px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;resize:none;line-height:1.6;min-height:80px}
-.send-msg-inp:focus{border-color:var(--gold)}
-.qr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;padding:10px 0}
-.qr-canvas{border-radius:10px;background:#fff;padding:12px}
-
-/* MY CARD SCREEN */
-.mycard-scroll{flex:1;overflow-y:auto;padding:16px 18px;-webkit-overflow-scrolling:touch}
+.sg-num{width:26px;height:26px;border-radius:50%;background:var(--akd);color:var(--ak);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.sg-txt{font-size:14px;color:var(--text);line-height:1.8;flex:1}
+.sg-txt a{color:var(--ak);text-decoration:none}
+.sg-txt code{font-family:monospace;font-size:13px;background:var(--card2);padding:2px 8px;border-radius:6px;color:var(--text)}
+.bnav{display:flex;background:var(--surf);border-top:1px solid var(--bord);padding:10px 0 calc(var(--safe-b) + 6px);flex-shrink:0}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:4px 0;color:var(--hint);font-size:11px;font-weight:500;border:none;background:none;transition:color .15s}
+.nb.on{color:var(--ak)}
+.ni{font-size:26px;line-height:1}
+.mycard-scroll{flex:1;overflow-y:auto;padding:20px;-webkit-overflow-scrolling:touch;background:var(--bg)}
 .mycard-scroll::-webkit-scrollbar{display:none}
-.mycard-preview{
-  width:100%;aspect-ratio:1.74;border-radius:14px;margin-bottom:18px;
-  background:#1A1A2E;position:relative;overflow:hidden;cursor:pointer;
-  border:.5px solid var(--bord);
-}
-.mycard-preview .mc-shine{
-  position:absolute;inset:0;border-radius:14px;
-  background:linear-gradient(135deg,#C9A23608 0%,#C9A23618 50%,#C9A23608 100%);
-  pointer-events:none;
-}
-.mc-content{position:relative;z-index:1;padding:18px 20px;height:100%;display:flex;flex-direction:column;justify-content:space-between}
-.mc-company{font-size:11px;color:var(--gold);letter-spacing:.12em}
-.mc-name{font-family:'Noto Serif KR',serif;font-size:22px;font-weight:700;color:var(--text)}
-.mc-title{font-size:10px;color:var(--gold2);letter-spacing:.1em;margin-top:2px}
-.mc-contacts{font-size:10px;color:var(--text);opacity:.65;line-height:2}
-.mc-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px}
-.mc-empty-ico{font-size:32px;opacity:.3}
-.mc-empty-t{font-size:12px;color:var(--hint);text-align:center;line-height:1.7}
-
-.form-sec{margin-bottom:20px}
-.form-sec-lbl{font-size:9px;letter-spacing:.14em;color:var(--hint);text-transform:uppercase;margin-bottom:10px;display:block}
-.form-card{background:var(--card);border:.5px solid var(--bord);border-radius:14px;overflow:hidden}
-.form-row{display:flex;align-items:center;gap:0;border-bottom:.5px solid var(--bord)}
+.mycard-preview{width:100%;aspect-ratio:1.74;border-radius:16px;margin-bottom:20px;background:#1B2340;position:relative;overflow:hidden;cursor:pointer;border:1px solid var(--bord)}
+.mycard-preview .mc-shine{position:absolute;inset:0;pointer-events:none}
+.mc-content{position:relative;z-index:1;padding:20px 24px;height:100%;display:flex;flex-direction:column;justify-content:space-between}
+.mc-company{font-size:12px;color:var(--ak2);letter-spacing:.1em;font-weight:500}
+.mc-name{font-family:'Noto Serif KR',serif;font-size:24px;font-weight:700;color:#fff}
+.mc-title{font-size:11px;color:var(--ak2);letter-spacing:.08em;margin-top:3px}
+.mc-contacts{font-size:12px;color:rgba(255,255,255,.65);line-height:2}
+.mc-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px}
+.mc-empty-ico{font-size:36px;opacity:.3}
+.mc-empty-t{font-size:14px;color:rgba(255,255,255,.4);text-align:center;line-height:1.7}
+.form-sec{margin-bottom:22px}
+.form-sec-lbl{font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--hint);text-transform:uppercase;margin-bottom:10px;display:block}
+.form-card{background:var(--surf);border:1px solid var(--bord);border-radius:16px;overflow:hidden}
+.form-row{display:flex;align-items:center;border-bottom:1px solid var(--bord)}
 .form-row:last-child{border-bottom:none}
-.form-ico{width:42px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;padding:0 4px}
-.form-inp{flex:1;background:transparent;border:none;outline:none;font-family:'DM Mono',monospace;font-size:13px;color:var(--text);padding:12px 12px 12px 0}
+.form-ico{width:48px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.form-inp{flex:1;background:transparent;border:none;outline:none;font-family:'Noto Sans KR',sans-serif;font-size:15px;color:var(--text);padding:15px 14px 15px 0}
 .form-inp::placeholder{color:var(--hint)}
-.form-inp:focus{background:var(--card2)}
-
-/* AUTO SEND PANEL */
-.autosend-box{background:var(--card);border:.5px solid var(--bord);border-radius:14px;padding:14px;margin-bottom:18px}
-.autosend-toggle{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.autosend-lbl{font-size:13px;color:var(--text);font-weight:500}
-.autosend-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.form-inp:focus{background:var(--akd)}
+.autosend-box{background:var(--surf);border:1px solid var(--bord);border-radius:16px;padding:18px;margin-bottom:20px}
+.autosend-toggle{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.autosend-lbl{font-size:16px;font-weight:700;color:var(--text)}
+.autosend-sub{font-size:13px;color:var(--hint);margin-top:3px}
 .toggle-wrap{flex-shrink:0}
-.toggle{width:44px;height:26px;border-radius:13px;background:var(--bord2);position:relative;cursor:pointer;transition:background .2s;border:none}
-.toggle.on{background:var(--gold)}
-.toggle::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:3px;left:3px;transition:left .2s}
-.toggle.on::after{left:21px}
+.toggle{width:52px;height:30px;border-radius:15px;background:var(--bord2);position:relative;cursor:pointer;transition:background .2s;border:none}
+.toggle.on{background:var(--ak)}
+.toggle::after{content:'';position:absolute;width:24px;height:24px;border-radius:50%;background:#fff;top:3px;left:3px;transition:left .2s}
+.toggle.on::after{left:25px}
 .autosend-channels{display:flex;gap:8px;flex-wrap:wrap}
-.ch-chip{font-size:11px;padding:5px 13px;border-radius:20px;background:var(--card2);border:.5px solid var(--bord2);color:var(--muted);cursor:pointer;transition:all .15s;letter-spacing:.03em}
-.ch-chip.on{background:var(--goldd);color:var(--gold2);border-color:var(--gold)}
-
-/* SCAN + MY CARD COMBINED RESULT */
-.dual-result{background:var(--card);border:.5px solid var(--bord);border-radius:14px;padding:14px;margin-bottom:16px}
-.dual-hd{font-size:10px;letter-spacing:.1em;color:var(--gold);margin-bottom:10px;display:flex;align-items:center;gap:6px}
-.dual-row{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:.5px solid var(--bord)}
+.ch-chip{font-size:14px;font-weight:500;padding:8px 18px;border-radius:20px;background:var(--card2);border:1px solid var(--bord);color:var(--sub);cursor:pointer;transition:all .15s}
+.ch-chip.on{background:var(--akd);color:var(--ak);border-color:var(--ak)}
+.dual-result{background:var(--surf);border:1px solid var(--bord);border-radius:16px;padding:16px;margin-bottom:18px}
+.dual-hd{font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--ak);margin-bottom:12px}
+.dual-row{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--bord)}
 .dual-row:last-child{border-bottom:none}
-.dual-ico{font-size:16px;flex-shrink:0;width:24px;text-align:center}
+.dual-ico{font-size:18px;flex-shrink:0;width:26px;text-align:center}
 .dual-info{flex:1;min-width:0}
-.dual-lbl{font-size:9px;color:var(--muted);letter-spacing:.06em}
-.dual-val{font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.send-status{font-size:11px;padding:6px 12px;border-radius:20px;display:inline-flex;align-items:center;gap:5px}
-.ss-ok{background:#4CAF7D18;color:var(--green);border:.5px solid #4CAF7D44}
-.ss-wait{background:var(--goldd);color:var(--gold);border:.5px solid var(--gold)}
-.ss-err{background:#E0555518;color:var(--red);border:.5px solid #E0555544}
-
+.dual-lbl{font-size:12px;color:var(--hint);font-weight:500}
+.dual-val{font-size:14px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.send-status{font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;display:inline-flex;align-items:center;gap:5px}
+.ss-ok{background:#1A9E5A18;color:var(--grn)}
+.ss-wait{background:var(--akd);color:var(--ak)}
+.ss-err{background:#D9302518;color:var(--red)}
+.ibanner{background:var(--akd);border-bottom:1px solid var(--bord);padding:12px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0}
 .ibanner.off{display:none}
-.ibt{flex:1;font-size:11px;color:var(--muted);line-height:1.6}
-.ibt strong{color:var(--text);display:block;font-size:12px;margin-bottom:1px}
-.ib-btn{padding:6px 14px;background:var(--gold);border:none;border-radius:20px;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;color:#0E0E10;cursor:pointer;white-space:nowrap}
-.ix{color:var(--hint);font-size:18px;cursor:pointer;padding:4px}
+.ibt{flex:1;font-size:13px;color:var(--sub);line-height:1.6}
+.ibt strong{color:var(--text);display:block;font-size:14px;font-weight:700;margin-bottom:1px}
+.ib-btn{padding:8px 18px;background:var(--ak);border:none;border-radius:20px;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:700;color:#fff;cursor:pointer;white-space:nowrap}
+.ix{color:var(--hint);font-size:20px;cursor:pointer;padding:4px}
+.modal{position:fixed;inset:0;background:#00000055;z-index:500;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+.modal.on{opacity:1;pointer-events:all}
+.msheet{background:var(--surf);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:0 0 calc(var(--safe-b) + 12px);transform:translateY(100%);transition:transform .3s ease;max-height:88vh;display:flex;flex-direction:column}
+.modal.on .msheet{transform:translateY(0)}
+.mhandle{width:40px;height:4px;background:var(--bord2);border-radius:2px;margin:14px auto 16px;flex-shrink:0}
+.mttl{font-family:'Noto Serif KR',serif;font-size:20px;font-weight:700;padding:0 22px 14px;border-bottom:1px solid var(--bord);flex-shrink:0}
+.mbody{padding:18px 22px;overflow-y:auto}
+.exp-pre{background:var(--card2);border:1px solid var(--bord);border-radius:12px;padding:14px;font-family:monospace;font-size:12px;color:var(--sub);line-height:1.9;white-space:pre-wrap;max-height:260px;overflow-y:auto}
+.mact{display:flex;gap:10px;margin-top:16px}
+.mbtn{flex:1;padding:14px;border-radius:12px;border:1px solid var(--bord);background:var(--card2);font-family:'Noto Sans KR',sans-serif;font-size:15px;font-weight:500;color:var(--sub);cursor:pointer;text-align:center;transition:background .15s}
+.mbtn.gold{background:var(--ak);border-color:var(--ak);color:#fff;font-weight:700}
+.mbtn:active{opacity:.8}
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--text);border-radius:24px;padding:12px 24px;font-size:14px;font-weight:500;color:#fff;pointer-events:none;opacity:0;transition:opacity .25s;z-index:999;white-space:nowrap;max-width:88%}
+.toast.on{opacity:1}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid #fff3;border-top-color:var(--ak);border-radius:50%;animation:sp .6s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.send-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.send-btn{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 8px;background:var(--card2);border:1px solid var(--bord);border-radius:16px;cursor:pointer;transition:all .15s}
+.send-btn:active{transform:scale(.93)}
+.send-ico{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.send-lbl{font-size:13px;font-weight:500;color:var(--sub);text-align:center;line-height:1.4}
+.si-email{background:#1A6FD418}
+.si-sms{background:#1A9E5A18}
+.si-kakao{background:#FAE10033}
+.si-copy{background:var(--akd)}
+.si-vcard{background:#D9770618}
+.si-qr{background:#D9302518}
+.send-preview{background:var(--card2);border:1px solid var(--bord);border-radius:12px;padding:14px;margin-bottom:14px}
+.sp-row{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+.sp-row:last-child{margin-bottom:0}
+.sp-key{font-size:13px;color:var(--hint);font-weight:500;width:52px;flex-shrink:0}
+.sp-val{font-size:15px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.send-msg-wrap{margin-bottom:14px}
+.send-msg-lbl{font-size:12px;font-weight:700;color:var(--hint);margin-bottom:8px;display:block}
+.send-msg-inp{width:100%;background:var(--card2);border:1px solid var(--bord);border-radius:12px;padding:13px 14px;font-family:'Noto Sans KR',sans-serif;font-size:15px;color:var(--text);outline:none;resize:none;line-height:1.7;min-height:90px}
+.send-msg-inp:focus{border-color:var(--ak)}
+.qr-wrap{display:flex;flex-direction:column;align-items:center;gap:14px;padding:12px 0}
+.qr-canvas{border-radius:12px;background:#fff;padding:14px}
 </style>
+
 </head>
 <body>
 <div id="app">
@@ -440,7 +403,7 @@ body{font-family:'DM Mono','Apple SD Gothic Neo',monospace;color:var(--text);-we
       <button class="bsub" onclick="saveContact()">💾 저장</button>
       <button class="bsub" onclick="openModal('vcard')">vCard</button>
       <button class="bsub" onclick="copyTxt()">복사</button>
-      <button class="bsub" onclick="goScan()">재스캔</button>
+      <button class="bsub" style="color:var(--red);border-color:var(--red)" onclick="deleteCurrentContact()">🗑️ 삭제</button>
     </div>
   </div>
 </div>
@@ -450,7 +413,10 @@ body{font-family:'DM Mono','Apple SD Gothic Neo',monospace;color:var(--text);-we
   <div class="list-top">
     <div class="list-tr">
       <div class="list-ttl">저장된 명함</div>
-      <div class="list-cnt" id="lCnt">0장</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="list-cnt" id="lCnt">0장</div>
+        <button class="edit-toggle" id="editToggleBtn" onclick="toggleEditMode()">편집</button>
+      </div>
     </div>
     <div class="srch">
       <span style="font-size:14px;color:var(--hint)">🔍</span>
@@ -683,12 +649,130 @@ body{font-family:'DM Mono','Apple SD Gothic Neo',monospace;color:var(--text);-we
   </div>
 </div>
 
+<!-- ═══ LOGIN / PROFILE SCREEN ═══ -->
+<div class="sc" id="sLogin">
+  <div class="set-scroll">
+
+    <!-- 비로그인 상태 -->
+    <div id="loginView">
+      <div style="text-align:center;padding:2rem 0 1.5rem">
+        <div style="font-size:52px;margin-bottom:12px">🔐</div>
+        <div style="font-family:'Noto Serif KR',serif;font-size:22px;font-weight:700;color:var(--text);margin-bottom:8px">로그인</div>
+        <div style="font-size:14px;color:var(--hint);line-height:1.8">로그인하면 모든 기기에서<br>명함 데이터가 자동 동기화돼요</div>
+      </div>
+      <div style="background:var(--surf);border:1px solid var(--bord);border-radius:16px;padding:20px;margin-bottom:16px">
+        <button onclick="loginGoogle()" style="width:100%;padding:16px;border-radius:12px;background:#fff;border:1px solid var(--bord);display:flex;align-items:center;justify-content:center;gap:12px;font-family:'Noto Sans KR',sans-serif;font-size:15px;font-weight:500;color:var(--text);cursor:pointer;margin-bottom:12px;transition:background .15s">
+          <span style="font-size:22px">G</span> Google 계정으로 로그인
+        </button>
+        <div style="font-size:12px;color:var(--hint);text-align:center;line-height:1.7">구글 계정 하나면 충분해요 · 완전 무료<br>개인정보는 Firebase에 안전하게 저장됩니다</div>
+      </div>
+      <div style="background:var(--akd);border:1px solid var(--bord);border-radius:14px;padding:14px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;color:var(--ak);margin-bottom:10px">로그인 없이도 사용 가능해요</div>
+        <div style="font-size:13px;color:var(--sub);line-height:1.8">
+          ✓ 명함 스캔 · 저장 · 내보내기<br>
+          ✓ 구글 스프레드시트 저장<br>
+          ✗ 여러 기기 동기화 (로그인 필요)<br>
+          ✗ 팀원 공유 (로그인 필요)
+        </div>
+      </div>
+      <!-- Firebase 설정 입력 -->
+      <div class="set-sec">
+        <span class="set-sec-ttl">Firebase 프로젝트 설정</span>
+        <div class="api-box">
+          <span class="api-lbl">FIREBASE CONFIG (JSON)</span>
+          <textarea class="api-inp" id="fbConfigInp" rows="6" style="width:100%;min-height:120px;font-family:monospace;font-size:12px;line-height:1.6;resize:vertical" placeholder='{"apiKey":"AIza...","authDomain":"xxx.firebaseapp.com","projectId":"xxx","storageBucket":"xxx.appspot.com","messagingSenderId":"123","appId":"1:123:web:abc"}'></textarea>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button class="api-save" style="flex:1" onclick="saveFbConfig()">Firebase 연결</button>
+            <button class="mbtn" onclick="showFbGuide()" style="padding:12px 16px">설정 방법 ↗</button>
+          </div>
+          <div class="api-st" id="fbSt"></div>
+          <div class="api-note" style="margin-top:10px">
+            firebase.google.com에서 무료로 만들 수 있어요.<br>
+            설정 방법 버튼을 눌러 단계별 안내를 확인하세요.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 로그인 후 프로필 -->
+    <div id="profileView" style="display:none">
+      <div style="background:var(--surf);border:1px solid var(--bord);border-radius:16px;padding:20px;margin-bottom:16px;display:flex;align-items:center;gap:14px">
+        <div id="userAvatar" style="width:56px;height:56px;border-radius:50%;background:var(--akd);border:2px solid var(--ak);display:flex;align-items:center;justify-content:center;font-family:'Noto Serif KR',serif;font-size:22px;font-weight:700;color:var(--ak);flex-shrink:0">?</div>
+        <div>
+          <div id="userName" style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px">사용자</div>
+          <div id="userEmail" style="font-size:13px;color:var(--hint)">로그인 중…</div>
+          <div style="font-size:11px;font-weight:700;color:var(--grn);margin-top:4px">● 동기화 연결됨</div>
+        </div>
+      </div>
+
+      <div class="set-sec">
+        <span class="set-sec-ttl">동기화 상태</span>
+        <div class="set-card">
+          <div class="set-row">
+            <div class="si gr">☁️</div>
+            <div class="set-lbl"><div class="set-lbl-t">클라우드 저장</div><div class="set-lbl-s" id="syncCountLbl">명함 0장 동기화됨</div></div>
+            <span id="syncDot" style="width:8px;height:8px;border-radius:50%;background:var(--grn);flex-shrink:0"></span>
+          </div>
+          <div class="set-row" onclick="syncNow()">
+            <div class="si go">🔄</div>
+            <div class="set-lbl"><div class="set-lbl-t">지금 동기화</div><div class="set-lbl-s">로컬 → 클라우드 전체 업로드</div></div>
+            <span class="sarr">›</span>
+          </div>
+          <div class="set-row" onclick="pullFromCloud()">
+            <div class="si bl">📥</div>
+            <div class="set-lbl"><div class="set-lbl-t">클라우드에서 가져오기</div><div class="set-lbl-s">다른 기기에서 저장한 명함 받기</div></div>
+            <span class="sarr">›</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="set-sec">
+        <span class="set-sec-ttl">팀 공유</span>
+        <div class="set-card">
+          <div class="set-row" onclick="shareTeamCode()">
+            <div class="si go">🤝</div>
+            <div class="set-lbl"><div class="set-lbl-t">팀 코드 공유</div><div class="set-lbl-s">팀원에게 코드 전송 → 명함 자동 공유</div></div>
+            <span class="sarr">›</span>
+          </div>
+          <div class="set-row">
+            <div class="si go">🔑</div>
+            <div class="set-lbl">
+              <div class="set-lbl-t">팀 코드 입력</div>
+              <div style="display:flex;gap:6px;margin-top:6px">
+                <input id="teamCodeInp" placeholder="팀원 코드 입력" style="flex:1;background:var(--card2);border:1px solid var(--bord);border-radius:8px;padding:8px 12px;font-family:'Noto Sans KR',sans-serif;font-size:14px;color:var(--text);outline:none">
+                <button onclick="joinTeam()" style="padding:8px 14px;background:var(--ak);border:none;border-radius:8px;font-size:13px;font-weight:700;color:#fff;cursor:pointer">참가</button>
+              </div>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="si gr">👥</div>
+            <div class="set-lbl"><div class="set-lbl-t">팀원 명함 자동 수신</div><div class="set-lbl-s" id="teamStatusLbl">팀 미참가</div></div>
+            <button class="toggle" id="teamToggle" onclick="toggleTeamSync()"></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="set-sec">
+        <div class="set-card">
+          <div class="set-row" onclick="logOut()" style="color:var(--red)">
+            <div class="si rd">🚪</div>
+            <div class="set-lbl"><div class="set-lbl-t" style="color:var(--red)">로그아웃</div></div>
+          </div>
+        </div>
+      </div>
+      <div style="height:40px"></div>
+    </div>
+
+  </div>
+</div>
+
 <!-- BOTTOM NAV -->
 <div class="bnav">
   <button class="nb on" id="n0" onclick="go('sCam',0)"><div class="ni">📷</div>스캔</button>
   <button class="nb" id="n1" onclick="go('sList',1)"><div class="ni">📋</div>목록</button>
   <button class="nb" id="n2" onclick="go('sMyCard',2)"><div class="ni">📇</div>내 명함</button>
-  <button class="nb" id="n3" onclick="go('sSet',3)"><div class="ni">⚙️</div>설정</button>
+  <button class="nb" id="n3" onclick="go('sLogin',3)"><div class="ni">👤</div>계정</button>
+  <button class="nb" id="n4" onclick="go('sSet',4)"><div class="ni">⚙️</div>설정</button>
 </div>
 
 <!-- SEND MODAL -->
@@ -1319,25 +1403,140 @@ async function shareIt(){
 function goScan(){current=null;go('sCam',0);}
 
 // LIST
-function renderList(list){
-  document.getElementById('lCnt').textContent=list.length+'장';
-  const el=document.getElementById('clist');
-  if(!list.length){el.innerHTML='<div class="empty"><div class="empty-ico">📇</div><div class="empty-t">저장된 명함이 없습니다.<br>스캔 탭에서 명함을 촬영하세요.</div></div>';return;}
-  el.innerHTML=list.map((c,i)=>`
-    <div class="crow" onclick="viewC(${i})">
-      <div class="cav">${(c.name||c.name_en||'?').replace(/\s/g,'').slice(0,2)}</div>
-      <div class="ci">
-        <div class="cn">${c.name||c.name_en||'—'}${c.name_en&&c.name?' <span style="font-size:10px;color:var(--muted)">'+c.name_en+'</span>':''}</div>
-        <div class="cs">${[c.title,c.company].filter(Boolean).join(' · ')}</div>
-      </div>
-      ${i<3?'<div class="cnew">NEW</div>':''}
-    </div>`).join('');
+let editMode = false;
+
+function toggleEditMode(){
+  editMode = !editMode;
+  const btn = document.getElementById('editToggleBtn');
+  btn.textContent = editMode ? '완료' : '편집';
+  btn.style.color = editMode ? 'var(--red)' : 'var(--gold)';
+  btn.style.borderColor = editMode ? 'var(--red)' : 'var(--gold)';
+  renderList(contacts);
 }
+
+function renderList(list){
+  document.getElementById('lCnt').textContent = contacts.length + '장';
+  const el = document.getElementById('clist');
+  if(!list.length){
+    el.innerHTML='<div class="empty"><div class="empty-ico">📇</div><div class="empty-t">저장된 명함이 없습니다.<br>스캔 탭에서 명함을 촬영하세요.</div></div>';
+    return;
+  }
+  el.innerHTML = list.map((c,i)=>{
+    const realIdx = contacts.indexOf(c); // 검색 필터 시 실제 인덱스
+    const initials = (c.name||c.name_en||'?').replace(/\s/g,'').slice(0,2);
+    const newBadge = contacts.indexOf(c) < 3 ? '<div class="cnew">NEW</div>' : '';
+    if(editMode){
+      // 편집 모드: 삭제 버튼 오른쪽에 표시
+      return `
+        <div class="crow-wrap" id="wrap_${realIdx}">
+          <div class="crow" style="padding-right:8px" onclick="viewC(${realIdx})">
+            <div class="cav">${initials}</div>
+            <div class="ci">
+              <div class="cn">${c.name||c.name_en||'—'}${c.name_en&&c.name?' <span style="font-size:10px;color:var(--muted)">'+c.name_en+'</span>':''}</div>
+              <div class="cs">${[c.title,c.company].filter(Boolean).join(' · ')}</div>
+            </div>
+            ${newBadge}
+            <button class="del-btn" onclick="event.stopPropagation();deleteContact(${realIdx})">🗑️</button>
+          </div>
+        </div>`;
+    } else {
+      // 일반 모드: 좌로 스와이프 → 삭제 노출
+      return `
+        <div class="crow-wrap" id="wrap_${realIdx}">
+          <div class="del-bg" onclick="deleteContact(${realIdx})">
+            <div class="del-bg-ico">🗑️</div>
+            <div>삭제</div>
+          </div>
+          <div class="crow" id="crow_${realIdx}" onclick="handleCrowClick(event,${realIdx})">
+            <div class="cav">${initials}</div>
+            <div class="ci">
+              <div class="cn">${c.name||c.name_en||'—'}${c.name_en&&c.name?' <span style="font-size:10px;color:var(--muted)">'+c.name_en+'</span>':''}</div>
+              <div class="cs">${[c.title,c.company].filter(Boolean).join(' · ')}</div>
+            </div>
+            ${newBadge}
+          </div>
+        </div>`;
+    }
+  }).join('');
+
+  // 스와이프 이벤트 등록 (편집 모드 아닐 때만)
+  if(!editMode) attachSwipe();
+}
+
+function handleCrowClick(e, idx){
+  const crow = document.getElementById('crow_'+idx);
+  if(crow && crow.classList.contains('swiped')){
+    // 스와이프 열린 상태면 닫기
+    crow.classList.remove('swiped');
+  } else {
+    viewC(idx);
+  }
+}
+
+function attachSwipe(){
+  document.querySelectorAll('.crow[id^="crow_"]').forEach(crow=>{
+    let startX=0, startY=0, moved=false;
+    crow.addEventListener('touchstart', e=>{
+      startX=e.touches[0].clientX;
+      startY=e.touches[0].clientY;
+      moved=false;
+      // 다른 열린 스와이프 닫기
+      document.querySelectorAll('.crow.swiped').forEach(c=>{
+        if(c!==crow) c.classList.remove('swiped');
+      });
+    },{passive:true});
+    crow.addEventListener('touchmove', e=>{
+      const dx=e.touches[0].clientX-startX;
+      const dy=e.touches[0].clientY-startY;
+      if(Math.abs(dy)>Math.abs(dx)) return; // 세로 스크롤 우선
+      moved=true;
+      if(dx<-20) crow.classList.add('swiped');
+      else if(dx>10) crow.classList.remove('swiped');
+    },{passive:true});
+    crow.addEventListener('touchend', ()=>{});
+  });
+}
+
+function deleteContact(idx){
+  const c = contacts[idx];
+  if(!c) return;
+  const name = c.name||c.name_en||'이 명함';
+  // 애니메이션
+  const crow = document.getElementById('crow_'+idx);
+  const wrap = document.getElementById('wrap_'+idx);
+  if(crow) crow.classList.add('deleting');
+  setTimeout(()=>{
+    contacts.splice(idx,1);
+    localStorage.setItem('cs2_contacts', JSON.stringify(contacts));
+    toast(`🗑️ ${name} 삭제됨`);
+    const q = document.getElementById('srchInp').value.toLowerCase();
+    if(q){
+      filterList();
+    } else {
+      renderList(contacts);
+    }
+  }, 280);
+}
+
 function filterList(){
   const q=document.getElementById('srchInp').value.toLowerCase();
   renderList(contacts.filter(c=>[c.name,c.name_en,c.company,c.title,c.email].filter(Boolean).some(v=>v.toLowerCase().includes(q))));
 }
 function viewC(i){current=contacts[i];document.getElementById('rImg').src=current._img||'';renderResult(current);go('sRes',-1);}
+
+function deleteCurrentContact(){
+  if(!current) return;
+  const name = current.name||current.name_en||'이 명함';
+  if(!confirm(`"${name}" 을(를) 삭제할까요?`)) return;
+  const idx = contacts.findIndex(c=>c._id===current._id);
+  if(idx!==-1){
+    contacts.splice(idx,1);
+    localStorage.setItem('cs2_contacts',JSON.stringify(contacts));
+    toast(`🗑️ ${name} 삭제됨`);
+    current = null;
+    go('sList',1);
+  }
+}
 function expCSV(){
   if(!contacts.length){toast('저장된 명함이 없습니다');return;}
   const h='이름,영문이름,회사,직책,휴대폰,전화,이메일,웹사이트,주소,저장일';
@@ -1378,15 +1577,8 @@ function go(id,navIdx){
   document.getElementById(id).classList.add('on');
   document.querySelectorAll('.nb').forEach((b,i)=>b.classList.toggle('on',i===navIdx));
   if(id==='sCam'){
-    // 스캔 탭으로 돌아올 때 — 재질문 없이 카메라 바로 재개
-    if(camStream && camStream.active){
-      camStream.getTracks().forEach(t=>t.enabled=true);
-      const v=document.getElementById('vid');
-      if(!v.srcObject){v.srcObject=camStream;}
-      v.style.display='block';
-    } else {
-      startCam(); // 스트림 끊긴 경우만 새로 시작
-    }
+    if(camStream&&camStream.active){camStream.getTracks().forEach(t=>t.enabled=true);const v=document.getElementById('vid');if(!v.srcObject)v.srcObject=camStream;v.style.display='block';}
+    else startCam();
   }
   if(id==='sList'){renderList(contacts);document.getElementById('srchInp').value='';}
   if(id==='sSet'){
@@ -1394,10 +1586,11 @@ function go(id,navIdx){
     document.getElementById('sheetIdInp').value=sheetId;
     document.getElementById('sheetNameInp').value=sheetName;
     const t=document.getElementById('sheetToggle');
-    if(sheetAutoOn) t.classList.add('on'); else t.classList.remove('on');
+    if(sheetAutoOn)t.classList.add('on');else t.classList.remove('on');
     updateSheetStatusBadge();
   }
   if(id==='sMyCard'){loadMcForm();updateMcPreview();}
+  if(id==='sLogin'){refreshLoginUI();}
 }
 
 // UTILS
@@ -1996,6 +2189,305 @@ async function syncAllToSheets(){
   if(sheetId) setTimeout(()=>openSheetDirect(),1500);
 }
 
+
+// ═══════════════════════════════════════════════════════
+// 🔥 FIREBASE 백엔드 — 로그인 · DB · 동기화 · 팀 공유
+// ═══════════════════════════════════════════════════════
+
+let fbApp = null;
+let fbDb = null;
+let fbAuth = null;
+let fbUser = null;
+let teamId = localStorage.getItem('cs2_teamid') || '';
+let teamSyncOn = localStorage.getItem('cs2_teamsync') === '1';
+let fbUnsubscribe = null; // 실시간 리스너
+
+// ─── Firebase Config 저장 / 로드 ───
+async function saveFbConfig(){
+  const raw = document.getElementById('fbConfigInp').value.trim();
+  const st = document.getElementById('fbSt');
+  try {
+    const cfg = JSON.parse(raw);
+    if(!cfg.apiKey||!cfg.projectId){throw new Error('필수 항목 누락');}
+    await secureSet('cs2_fbcfg', raw);
+    st.textContent = '✓ Firebase 설정 저장됨. 초기화 중…';
+    st.className = 'api-st ok'; st.style.display = 'block';
+    await initFirebase(cfg);
+  } catch(e) {
+    st.textContent = '❌ JSON 형식 오류: ' + e.message;
+    st.className = 'api-st er'; st.style.display = 'block';
+  }
+}
+
+async function loadFbConfig(){
+  try {
+    const raw = await secureGet('cs2_fbcfg');
+    if(!raw) return;
+    const cfg = JSON.parse(raw);
+    await initFirebase(cfg);
+  } catch(e) { /* Firebase 미설정 */ }
+}
+
+// ─── Firebase 초기화 ───
+async function initFirebase(cfg){
+  if(typeof firebase === 'undefined'){
+    toast('⚠️ Firebase SDK 로딩 중… 잠시 후 다시 시도해주세요');
+    return;
+  }
+  try {
+    if(fbApp) { /* 이미 초기화됨 */ } else {
+      fbApp = firebase.initializeApp(cfg);
+    }
+    fbAuth = firebase.auth();
+    fbDb = firebase.firestore();
+    // 인증 상태 감지
+    fbAuth.onAuthStateChanged(user => {
+      fbUser = user;
+      refreshLoginUI();
+      if(user) {
+        startRealtimeSync();
+        updateSyncCount();
+      } else {
+        if(fbUnsubscribe) { fbUnsubscribe(); fbUnsubscribe = null; }
+      }
+    });
+    toast('🔥 Firebase 연결 완료');
+  } catch(e) {
+    toast('Firebase 오류: ' + e.message);
+  }
+}
+
+// ─── Google 로그인 ───
+async function loginGoogle(){
+  if(!fbAuth){ toast('⚠️ Firebase 설정을 먼저 해주세요'); return; }
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await fbAuth.signInWithPopup(provider);
+    toast('✓ 로그인 완료!');
+  } catch(e) {
+    if(e.code !== 'auth/popup-closed-by-user')
+      toast('로그인 오류: ' + (e.message||e.code));
+  }
+}
+
+// ─── 로그아웃 ───
+async function logOut(){
+  if(!fbAuth) return;
+  if(!confirm('로그아웃 하시겠어요?')) return;
+  await fbAuth.signOut();
+  toast('로그아웃 완료');
+}
+
+// ─── 로그인 UI 갱신 ───
+function refreshLoginUI(){
+  const lv = document.getElementById('loginView');
+  const pv = document.getElementById('profileView');
+  if(!lv||!pv) return;
+  if(fbUser) {
+    lv.style.display = 'none';
+    pv.style.display = 'block';
+    const nm = fbUser.displayName || '사용자';
+    document.getElementById('userName').textContent = nm;
+    document.getElementById('userEmail').textContent = fbUser.email || '';
+    document.getElementById('userAvatar').textContent = nm.replace(/\s/g,'').slice(0,2);
+    const tt = document.getElementById('teamToggle');
+    if(tt) { if(teamSyncOn) tt.classList.add('on'); else tt.classList.remove('on'); }
+    const tsl = document.getElementById('teamStatusLbl');
+    if(tsl) tsl.textContent = teamId ? '팀 참가 중: ' + teamId.slice(0,8) + '…' : '팀 미참가';
+    // 계정 탭 아이콘 갱신
+    const nb3 = document.getElementById('n3');
+    if(nb3) nb3.querySelector('.ni').textContent = '✅';
+  } else {
+    lv.style.display = 'block';
+    pv.style.display = 'none';
+    const nb3 = document.getElementById('n3');
+    if(nb3) nb3.querySelector('.ni').textContent = '👤';
+  }
+}
+
+// ─── Firestore: 명함 한 장 저장 ───
+async function saveToFirestore(contact){
+  if(!fbUser||!fbDb) return false;
+  try {
+    const uid = fbUser.uid;
+    const docId = String(contact._id);
+    const data = { ...contact, _uid: uid, _updated: Date.now() };
+    delete data._img; // 이미지는 용량 문제로 제외 (base64 너무 큼)
+    await fbDb.collection('users').doc(uid).collection('cards').doc(docId).set(data);
+    // 팀 동기화
+    if(teamSyncOn && teamId) {
+      await fbDb.collection('teams').doc(teamId).collection('cards').doc(docId).set({...data, _sharedBy: fbUser.email});
+    }
+    return true;
+  } catch(e) { console.error('Firestore save:', e); return false; }
+}
+
+// ─── Firestore: 전체 로컬 → 클라우드 업로드 ───
+async function syncNow(){
+  if(!fbUser||!fbDb){ toast('⚠️ 로그인 후 사용 가능'); return; }
+  if(!contacts.length){ toast('저장된 명함이 없습니다'); return; }
+  toast('☁️ 동기화 중…');
+  let ok = 0;
+  const batch = fbDb.batch();
+  const uid = fbUser.uid;
+  contacts.forEach(c => {
+    const data = { ...c, _uid: uid, _updated: Date.now() };
+    delete data._img;
+    const ref = fbDb.collection('users').doc(uid).collection('cards').doc(String(c._id));
+    batch.set(ref, data);
+    ok++;
+  });
+  await batch.commit();
+  toast('✅ ' + ok + '장 동기화 완료');
+  updateSyncCount();
+}
+
+// ─── Firestore: 클라우드 → 로컬 다운로드 ───
+async function pullFromCloud(){
+  if(!fbUser||!fbDb){ toast('⚠️ 로그인 후 사용 가능'); return; }
+  toast('📥 클라우드에서 가져오는 중…');
+  try {
+    const uid = fbUser.uid;
+    const snap = await fbDb.collection('users').doc(uid).collection('cards').orderBy('_updated','desc').get();
+    if(snap.empty){ toast('클라우드에 저장된 명함이 없습니다'); return; }
+    let added = 0;
+    snap.forEach(doc => {
+      const d = doc.data();
+      const exists = contacts.find(c=>String(c._id)===String(d._id));
+      if(!exists){ contacts.unshift(d); added++; }
+    });
+    localStorage.setItem('cs2_contacts', JSON.stringify(contacts));
+    renderList(contacts);
+    toast('✅ ' + added + '장 새로 가져옴 (총 ' + contacts.length + '장)');
+    updateSyncCount();
+  } catch(e) { toast('가져오기 오류: ' + e.message); }
+}
+
+// ─── 실시간 동기화 리스너 ───
+function startRealtimeSync(){
+  if(!fbUser||!fbDb||fbUnsubscribe) return;
+  const uid = fbUser.uid;
+  fbUnsubscribe = fbDb
+    .collection('users').doc(uid).collection('cards')
+    .orderBy('_updated','desc')
+    .onSnapshot(snap => {
+      let changed = false;
+      snap.docChanges().forEach(change => {
+        const d = change.doc.data();
+        if(change.type === 'added' || change.type === 'modified') {
+          const idx = contacts.findIndex(c=>String(c._id)===String(d._id));
+          if(idx === -1){ contacts.unshift(d); changed = true; }
+          else if(d._updated > (contacts[idx]._updated||0)){ contacts[idx]=d; changed=true; }
+        }
+        if(change.type === 'removed') {
+          const idx = contacts.findIndex(c=>String(c._id)===String(d._id));
+          if(idx !== -1){ contacts.splice(idx,1); changed=true; }
+        }
+      });
+      if(changed) {
+        localStorage.setItem('cs2_contacts', JSON.stringify(contacts));
+        updateSyncCount();
+        // 목록 화면이 열려있으면 갱신
+        if(document.getElementById('sList').classList.contains('on')) renderList(contacts);
+      }
+    }, err => console.error('Realtime sync error:', err));
+}
+
+// ─── 동기화 카운트 업데이트 ───
+async function updateSyncCount(){
+  if(!fbUser||!fbDb) return;
+  try {
+    const uid = fbUser.uid;
+    const snap = await fbDb.collection('users').doc(uid).collection('cards').get();
+    const lbl = document.getElementById('syncCountLbl');
+    if(lbl) lbl.textContent = '명함 ' + snap.size + '장 동기화됨';
+  } catch(e) {}
+}
+
+// ─── 팀 공유: 내 팀 코드 공유 ───
+async function shareTeamCode(){
+  if(!fbUser){ toast('⚠️ 로그인 후 사용 가능'); return; }
+  // 내 uid 기반 팀 코드 (8자)
+  const myTeamId = fbUser.uid;
+  const shortCode = myTeamId.slice(0,8).toUpperCase();
+  const msg = '📇 CardScan AI 팀 명함 공유
+팀 코드: ' + shortCode + '
+앱 → 계정 → 팀 코드 입력란에 붙여넣기';
+  if(navigator.share){
+    try { await navigator.share({title:'팀 명함 공유 코드', text:msg}); }
+    catch(e) { if(e.name!=='AbortError') navigator.clipboard.writeText(msg).then(()=>toast('코드 복사됨')); }
+  } else {
+    navigator.clipboard.writeText(shortCode).then(()=>toast('팀 코드 복사됨: ' + shortCode));
+  }
+}
+
+// ─── 팀 코드 입력 → 참가 ───
+async function joinTeam(){
+  const code = document.getElementById('teamCodeInp').value.trim().toUpperCase();
+  if(!code||code.length<6){ toast('올바른 팀 코드를 입력해주세요'); return; }
+  if(!fbUser){ toast('⚠️ 로그인 후 사용 가능'); return; }
+  // 팀 ID는 상대방 uid (8자 코드에서 매칭 — 실제로는 Firestore 쿼리로 검색)
+  try {
+    const snap = await fbDb.collection('users').where('shortCode','==',code).get();
+    let targetUid = '';
+    if(!snap.empty){ snap.forEach(d=>{ targetUid = d.id; }); }
+    // 직접 uid prefix로 검색
+    if(!targetUid){
+      const allSnap = await fbDb.collection('users').get();
+      allSnap.forEach(d=>{ if(d.id.toUpperCase().startsWith(code)) targetUid=d.id; });
+    }
+    teamId = targetUid || code;
+    localStorage.setItem('cs2_teamid', teamId);
+    const tsl = document.getElementById('teamStatusLbl');
+    if(tsl) tsl.textContent = '팀 참가 중: ' + code;
+    toast('✅ 팀 참가 완료! 팀원 명함을 실시간으로 받습니다');
+    startTeamSync();
+  } catch(e) { toast('팀 참가 오류: ' + e.message); }
+}
+
+// ─── 팀 실시간 명함 수신 ───
+function startTeamSync(){
+  if(!fbUser||!fbDb||!teamId) return;
+  fbDb.collection('teams').doc(teamId).collection('cards')
+    .where('_uid','!=',fbUser.uid)
+    .onSnapshot(snap => {
+      snap.docChanges().forEach(change => {
+        if(change.type === 'added') {
+          const d = change.doc.data();
+          const exists = contacts.find(c=>String(c._id)===String(d._id));
+          if(!exists){
+            contacts.unshift({...d, _fromTeam:true});
+            localStorage.setItem('cs2_contacts',JSON.stringify(contacts));
+            toast('📥 팀원 명함 수신: ' + (d.name||d.company||'명함'));
+          }
+        }
+      });
+    });
+}
+
+// ─── 팀 동기화 ON/OFF ───
+function toggleTeamSync(){
+  teamSyncOn = !teamSyncOn;
+  localStorage.setItem('cs2_teamsync', teamSyncOn?'1':'0');
+  const t = document.getElementById('teamToggle');
+  if(t){ if(teamSyncOn) t.classList.add('on'); else t.classList.remove('on'); }
+  toast(teamSyncOn ? '팀 동기화 켜짐' : '팀 동기화 꺼짐');
+  if(teamSyncOn && teamId) startTeamSync();
+}
+
+// ─── Firebase 설정 안내 ───
+function showFbGuide(){
+  const msg = `Firebase 무료 설정 방법 (5분)
+
+1. firebase.google.com 접속 → 로그인
+2. 프로젝트 추가 → 이름: cardscan
+3. 왼쪽 Firestore Database → 데이터베이스 만들기 → 테스트 모드 → 서울(asia-northeast3)
+4. 왼쪽 Authentication → 시작 → Google → 사용 설정
+5. 톱니바퀴(설정) → 프로젝트 설정 → 앱 추가 → 웹(</>)
+6. firebaseConfig 값 복사 → 앱에 붙여넣기`;
+  alert(msg);
+}
+
 // ─── SERVICE WORKER ───
 function renderResultAndSend(d){
   renderResult(d);
@@ -2007,6 +2499,8 @@ function renderResultAndSend(d){
   const idx=contacts.findIndex(c=>c._id===d._id);
   if(idx===-1) contacts.unshift(d); else contacts[idx]=d;
   localStorage.setItem('cs2_contacts',JSON.stringify(contacts));
+  // ☁️ Firebase 자동 저장
+  if(fbUser&&fbDb) saveToFirestore(d).then(ok=>{ if(ok) showCloudBadge(); });
   // 구글 스프레드시트 자동 저장
   if(sheetAutoOn&&sheetId&&gkey){
     setTimeout(()=>autoSaveToSheets(d),500);
@@ -2025,6 +2519,8 @@ function renderResultAndSend(d){
   updateMcPreview&&setTimeout(()=>{
     if(document.getElementById('mcContent')) updateMcPreview();
   },150);
+  // Firebase 자동 로드 (설정 저장된 경우)
+  setTimeout(()=>loadFbConfig(),300);
 })();
 
 if('serviceWorker' in navigator){
