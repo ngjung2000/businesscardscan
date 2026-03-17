@@ -940,21 +940,79 @@ function doInstall(){
   document.getElementById('ibanner').classList.add('off');
 }
 
-// ─── CAMERA ───
+// ─── CAMERA (권한 기억 — 한 번 허용하면 다시 묻지 않음) ───
+let camStream = null;
+
 async function startCam(){
   if(!navigator.mediaDevices?.getUserMedia){showNoCam();return;}
+
+  // 1. Permissions API로 이미 허용됐는지 먼저 확인
+  if(navigator.permissions){
+    try{
+      const perm = await navigator.permissions.query({name:'camera'});
+      if(perm.state === 'denied'){showNoCam();return;}
+      // 이미 granted면 조용히 바로 켜기 (팝업 안 뜸)
+      // prompt 상태면 아래에서 한 번만 물어봄
+      // 상태 변화 감지 (허용 → 취소 등)
+      perm.onchange = ()=>{
+        if(perm.state==='denied'){stopCam();showNoCam();}
+        else if(perm.state==='granted'){startCam();}
+      };
+    }catch(e){/* Permissions API 미지원 브라우저는 그냥 진행 */}
+  }
+
+  // 이미 스트림이 살아있으면 재사용 (재질문 방지)
+  if(camStream && camStream.active){
+    const v=document.getElementById('vid');
+    if(!v.srcObject) v.srcObject=camStream;
+    v.style.display='block';
+    document.getElementById('noCam').classList.add('off');
+    return;
+  }
+
   try{
-    const s=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
+    const s = await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},
+      audio:false
+    });
+    camStream = s;
+    localStorage.setItem('cs2_camGranted','1'); // 허용 기억
     const v=document.getElementById('vid');
     v.srcObject=s; v.style.display='block';
-  }catch(e){showNoCam();}
+    document.getElementById('noCam').classList.add('off');
+  }catch(e){
+    localStorage.removeItem('cs2_camGranted');
+    showNoCam();
+  }
 }
+
+function stopCam(){
+  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}
+}
+
 function showNoCam(){
   document.getElementById('vid').style.display='none';
   document.getElementById('noCam').classList.remove('off');
 }
+
+// 앱 화면 전환 시 카메라 유지 (끄지 않음)
+// 탭 숨김/재진입 때만 최적화
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    // 백그라운드 전환 시 트랙 일시정지 (배터리 절약)
+    if(camStream) camStream.getTracks().forEach(t=>t.enabled=false);
+  } else {
+    // 포그라운드 복귀 시 재개 (재질문 없이)
+    if(camStream && camStream.active){
+      camStream.getTracks().forEach(t=>t.enabled=true);
+    } else if(localStorage.getItem('cs2_camGranted')==='1'){
+      startCam(); // 스트림 끊긴 경우만 재시작
+    }
+  }
+});
+
 startCam();
+
 
 function capture(){
   const v=document.getElementById('vid');
@@ -1319,9 +1377,20 @@ function go(id,navIdx){
   document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
   document.getElementById(id).classList.add('on');
   document.querySelectorAll('.nb').forEach((b,i)=>b.classList.toggle('on',i===navIdx));
+  if(id==='sCam'){
+    // 스캔 탭으로 돌아올 때 — 재질문 없이 카메라 바로 재개
+    if(camStream && camStream.active){
+      camStream.getTracks().forEach(t=>t.enabled=true);
+      const v=document.getElementById('vid');
+      if(!v.srcObject){v.srcObject=camStream;}
+      v.style.display='block';
+    } else {
+      startCam(); // 스트림 끊긴 경우만 새로 시작
+    }
+  }
   if(id==='sList'){renderList(contacts);document.getElementById('srchInp').value='';}
   if(id==='sSet'){
-    document.getElementById('apiInp').value=gkey;
+    document.getElementById('apiInp').value=gkey?gkey.slice(0,8)+'••••••••••••••••••••'+gkey.slice(-4):'';
     document.getElementById('sheetIdInp').value=sheetId;
     document.getElementById('sheetNameInp').value=sheetName;
     const t=document.getElementById('sheetToggle');
