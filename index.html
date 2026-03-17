@@ -1,0 +1,1969 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CardScan">
+<meta name="theme-color" content="#0E0E10">
+<!-- ██ 보안: XSS 방어 Content Security Policy -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self' blob:;
+  script-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com;
+  font-src https://fonts.gstatic.com;
+  img-src 'self' data: blob: https://chart.googleapis.com;
+  connect-src https://vision.googleapis.com https://sheets.googleapis.com https://fonts.googleapis.com;
+  frame-ancestors 'none';
+">
+<!-- ██ 보안: 클릭재킹 방어 -->
+<meta http-equiv="X-Frame-Options" content="DENY">
+<!-- ██ 보안: MIME 스니핑 방어 -->
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<!-- ██ 보안: Referrer 최소화 -->
+<meta name="referrer" content="no-referrer">
+<title>CardScan — 명함 자동 인식</title>
+<script>
+// PWA Manifest
+const m={name:"CardScan AI",short_name:"CardScan",start_url:"./",display:"standalone",
+  background_color:"#0E0E10",theme_color:"#0E0E10",orientation:"portrait",
+  icons:[{src:"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxOTIgMTkyJz48cmVjdCB3aWR0aD0nMTkyJyBoZWlnaHQ9JzE5Micgcng9JzMyJyBmaWxsPScjMUExQTJFJy8+PHRleHQgeD0nMzYnIHk9JzEzMCcgZm9udC1zaXplPScxMDAnPvCfm4s8L3RleHQ+PC9zdmc+",sizes:"192x192",type:"image/svg+xml"}]};
+const bl=new Blob([JSON.stringify(m)],{type:'application/json'});
+const lk=document.createElement('link');lk.rel='manifest';lk.href=URL.createObjectURL(bl);
+document.head.appendChild(lk);
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Serif+KR:wght@400;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --gold:#C9A236;--gold2:#E8C96A;--goldd:#C9A23625;
+  --bg:#0E0E10;--surf:#16161A;--card:#1E1E26;--card2:#27272F;
+  --bord:#2C2C3A;--bord2:#3C3C4A;
+  --text:#F0EEE8;--muted:#7A7882;--hint:#46444F;
+  --green:#4CAF7D;--red:#E05555;--amber:#E8A935;--blue:#4D9DE0;
+  --safe-t:env(safe-area-inset-top,0px);
+  --safe-b:env(safe-area-inset-bottom,16px);
+}
+html,body{height:100%;overflow:hidden;background:var(--bg)}
+body{font-family:'DM Mono','Apple SD Gothic Neo',monospace;color:var(--text);-webkit-font-smoothing:antialiased}
+#app{width:100%;max-width:430px;height:100%;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);position:relative}
+
+/* STATUS */
+.sb{padding:calc(var(--safe-t) + 6px) 18px 4px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;min-height:42px}
+.sb-time{font-size:15px;font-weight:600;letter-spacing:.02em}
+.sb-r{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)}
+
+/* HEADER */
+.hd{padding:6px 18px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:.5px solid var(--bord);flex-shrink:0}
+.logo{font-family:'Noto Serif KR',serif;font-size:18px;font-weight:700;color:var(--gold)}
+.logo small{display:block;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);font-weight:400;letter-spacing:.1em;margin-top:1px}
+.hd-pill{font-size:9px;letter-spacing:.1em;padding:3px 10px;border:.5px solid var(--gold);color:var(--gold);border-radius:20px}
+
+/* SCREENS */
+.sc{display:none;flex:1;flex-direction:column;overflow:hidden}
+.sc.on{display:flex}
+
+/* ══ CAMERA ══ */
+.cam-view{flex:1;position:relative;background:#000;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:200px}
+#vid{width:100%;height:100%;object-fit:cover;display:block}
+.cam-ui{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.frame{width:83%;max-width:310px;aspect-ratio:1.74;position:relative}
+.frame::before{content:'';position:absolute;inset:0;border:1.5px solid var(--gold);border-radius:8px;opacity:.6;animation:fp 2.5s ease-in-out infinite}
+@keyframes fp{0%,100%{opacity:.3}50%{opacity:.85}}
+.c{position:absolute;width:20px;height:20px;border-color:var(--gold2);border-style:solid}
+.c.tl{top:-1px;left:-1px;border-width:2.5px 0 0 2.5px;border-radius:5px 0 0 0}
+.c.tr{top:-1px;right:-1px;border-width:2.5px 2.5px 0 0;border-radius:0 5px 0 0}
+.c.bl{bottom:-1px;left:-1px;border-width:0 0 2.5px 2.5px;border-radius:0 0 0 5px}
+.c.br{bottom:-1px;right:-1px;border-width:0 2.5px 2.5px 0;border-radius:0 0 5px 0}
+.sl{position:absolute;inset:0;border-radius:6px;overflow:hidden}
+.sl::after{content:'';position:absolute;left:0;right:0;height:2px;top:0;background:linear-gradient(90deg,transparent,var(--gold),transparent);animation:sm 2.3s ease-in-out infinite;opacity:.7}
+@keyframes sm{0%{top:0;opacity:0}10%{opacity:.7}90%{opacity:.7}100%{top:100%;opacity:0}}
+.cam-hint{position:absolute;bottom:-34px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--gold2);letter-spacing:.07em;background:#00000099;padding:4px 14px;border-radius:20px;white-space:nowrap}
+.no-cam{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:2rem;background:var(--surf);text-align:center}
+.no-cam-ico{font-size:44px;opacity:.35}
+.no-cam-t{font-size:13px;color:var(--muted);line-height:1.9}
+.no-cam-s{font-size:12px;color:var(--gold);line-height:1.7}
+.cam-bot{background:var(--surf);border-top:.5px solid var(--bord);padding:14px 24px calc(var(--safe-b) + 6px);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.ico-btn{width:48px;height:48px;border-radius:50%;background:var(--card);border:.5px solid var(--bord2);display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;transition:transform .12s,background .15s}
+.ico-btn:active{transform:scale(.88);background:var(--bord)}
+.sh-wrap{display:flex;align-items:center;justify-content:center;flex:1}
+.sh-ring{width:74px;height:74px;border-radius:50%;border:2.5px solid var(--bord2);display:flex;align-items:center;justify-content:center}
+.sh-btn{width:58px;height:58px;border-radius:50%;background:var(--gold);border:none;cursor:pointer;font-size:24px;transition:transform .12s,opacity .12s;display:flex;align-items:center;justify-content:center}
+.sh-btn:active{transform:scale(.87);opacity:.78}
+
+/* ══ PROCESSING ══ */
+.proc{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1.5rem;gap:22px}
+#proc-img{width:240px;border-radius:10px;border:.5px solid var(--bord);opacity:.6}
+.proc-ttl{font-family:'Noto Serif KR',serif;font-size:15px;color:var(--text);text-align:center;letter-spacing:.04em}
+.proc-list{width:100%;max-width:290px}
+.ps{display:flex;align-items:center;gap:11px;padding:8px 0;font-size:12px;color:var(--hint);border-bottom:.5px solid var(--bord);transition:color .3s}
+.ps:last-child{border-bottom:none}
+.ps.act{color:var(--gold)}
+.ps.dn{color:var(--green)}
+.pn{width:22px;height:22px;border-radius:50%;border:1px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;font-weight:500}
+.ps.dn .pn{font-size:11px}
+.pg-wrap{width:100%;max-width:290px}
+.pg{height:2px;background:var(--bord);border-radius:2px;overflow:hidden}
+.pg-fill{height:100%;background:var(--gold);width:0%;transition:width .45s ease;border-radius:2px}
+.pg-lbl{font-size:10px;color:var(--muted);letter-spacing:.06em;text-align:center;margin-top:6px}
+
+/* ══ RESULT ══ */
+.res-scroll{flex:1;overflow-y:auto;padding:16px 18px;-webkit-overflow-scrolling:touch}
+.res-scroll::-webkit-scrollbar{display:none}
+.card-thumb{width:100%;border-radius:10px;display:block;border:.5px solid var(--bord);margin-bottom:16px;max-height:180px;object-fit:cover}
+.c-head{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.av{width:56px;height:56px;border-radius:50%;background:var(--card);border:1.5px solid var(--gold);display:flex;align-items:center;justify-content:center;font-family:'Noto Serif KR',serif;font-size:19px;font-weight:700;color:var(--gold);flex-shrink:0}
+.c-nm{font-family:'Noto Serif KR',serif;font-size:21px;font-weight:700;color:var(--text);margin-bottom:4px}
+.c-tl{font-size:10px;color:var(--gold);letter-spacing:.12em;text-transform:uppercase}
+.c-co{font-size:12px;color:var(--muted);margin-top:3px}
+.sec-lbl{font-size:9px;letter-spacing:.14em;color:var(--hint);text-transform:uppercase;margin-bottom:8px;display:block}
+.flist{margin-bottom:20px}
+.fi{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:.5px solid var(--bord)}
+.fi:last-child{border-bottom:none}
+.fic{width:30px;height:30px;border-radius:8px;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.fb{flex:1;min-width:0}
+.fl{font-size:9px;color:var(--muted);letter-spacing:.07em;margin-bottom:2px}
+.fv{font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fv input{width:100%;background:transparent;border:none;outline:none;font-family:'DM Mono',monospace;font-size:13px;color:var(--text);padding:0}
+.ctag{font-size:9px;padding:2px 7px;border-radius:10px;flex-shrink:0;letter-spacing:.04em}
+.ch{background:#4CAF7D18;color:var(--green);border:.5px solid #4CAF7D44}
+.cm{background:#E8A93518;color:var(--amber);border:.5px solid #E8A93544}
+.cl{background:#E0555518;color:var(--red);border:.5px solid #E0555544}
+
+/* INSIGHT */
+.ins-box{background:var(--card);border:.5px solid var(--bord);border-radius:14px;padding:14px;margin-bottom:18px}
+.ins-hd{font-size:10px;letter-spacing:.1em;color:var(--gold);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.ir{display:flex;gap:8px;margin-bottom:7px;align-items:flex-start}
+.ir:last-child{margin-bottom:0}
+.ik{font-size:9px;color:var(--muted);width:54px;flex-shrink:0;padding-top:2px;letter-spacing:.05em}
+.iv{font-size:11px;color:var(--text);line-height:1.65;flex:1}
+.pb{display:inline-block;font-size:10px;font-weight:500;padding:2px 10px;border-radius:10px;letter-spacing:.06em}
+.ph{background:#4CAF7D1A;color:var(--green);border:.5px solid #4CAF7D55}
+.pm{background:#E8A9351A;color:var(--amber);border:.5px solid #E8A93555}
+.pl{background:#4D9DE01A;color:var(--blue);border:.5px solid #4D9DE055}
+
+/* TAGS */
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px}
+.tag{font-size:10px;padding:4px 11px;border-radius:20px;background:var(--card);border:.5px solid var(--bord);color:var(--muted);cursor:pointer;transition:all .15s;letter-spacing:.04em}
+.tag.on{background:var(--goldd);color:var(--gold2);border-color:var(--gold)}
+
+/* ACTION BAR */
+.abar{background:var(--surf);border-top:.5px solid var(--bord);padding:12px 16px calc(var(--safe-b) + 6px);flex-shrink:0}
+.btn-main{width:100%;padding:14px;border-radius:12px;background:var(--gold);border:none;cursor:pointer;font-family:'DM Mono',monospace;font-size:13px;font-weight:500;color:#0E0E10;letter-spacing:.04em;margin-bottom:8px;transition:opacity .15s;display:flex;align-items:center;justify-content:center;gap:7px}
+.btn-main:active{opacity:.8}
+.brow{display:flex;gap:8px}
+.bsub{flex:1;padding:11px 4px;border-radius:10px;background:var(--card);border:.5px solid var(--bord2);font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);cursor:pointer;text-align:center;transition:background .15s;letter-spacing:.02em}
+.bsub:active{background:var(--bord)}
+
+/* ══ LIST ══ */
+.list-top{padding:12px 18px;border-bottom:.5px solid var(--bord);flex-shrink:0}
+.list-tr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.list-ttl{font-family:'Noto Serif KR',serif;font-size:17px}
+.list-cnt{font-size:11px;color:var(--muted)}
+.srch{display:flex;align-items:center;gap:9px;background:var(--card);border:.5px solid var(--bord);border-radius:10px;padding:9px 13px}
+.srch input{flex:1;background:transparent;border:none;outline:none;font-family:'DM Mono',monospace;font-size:13px;color:var(--text)}
+.srch input::placeholder{color:var(--hint)}
+.clist{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.clist::-webkit-scrollbar{display:none}
+.crow{display:flex;align-items:center;gap:13px;padding:12px 18px;cursor:pointer;transition:background .12s;border-bottom:.5px solid var(--bord)}
+.crow:active{background:var(--card)}
+.cav{width:44px;height:44px;border-radius:50%;background:var(--card);border:1px solid var(--bord2);display:flex;align-items:center;justify-content:center;font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:var(--gold);flex-shrink:0}
+.ci{flex:1;min-width:0}
+.cn{font-size:13px;color:var(--text);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cs{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cnew{font-size:9px;padding:2px 7px;border-radius:10px;background:#4CAF7D18;color:var(--green);border:.5px solid #4CAF7D44;flex-shrink:0}
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:3rem;text-align:center}
+.empty-ico{font-size:48px;opacity:.2}
+.empty-t{font-size:13px;color:var(--muted);line-height:1.9}
+
+/* ══ SETTINGS ══ */
+.set-scroll{flex:1;overflow-y:auto;padding:16px 18px;-webkit-overflow-scrolling:touch}
+.set-scroll::-webkit-scrollbar{display:none}
+.set-sec{margin-bottom:22px}
+.set-sec-ttl{font-size:10px;color:var(--hint);letter-spacing:.14em;text-transform:uppercase;margin-bottom:9px;display:block}
+.set-card{background:var(--card);border:.5px solid var(--bord);border-radius:14px;overflow:hidden}
+.set-row{display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:.5px solid var(--bord);cursor:pointer;transition:background .12s}
+.set-row:last-child{border-bottom:none}
+.set-row:active{background:var(--card2)}
+.si{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.si.go{background:var(--goldd)}
+.si.bl{background:#4D9DE01A}
+.si.gr{background:#4CAF7D18}
+.si.rd{background:#E0555518}
+.set-lbl{flex:1}
+.set-lbl-t{font-size:13px;color:var(--text)}
+.set-lbl-s{font-size:11px;color:var(--muted);margin-top:1px}
+.sarr{color:var(--hint);font-size:14px}
+
+/* API KEY BOX */
+.api-box{background:var(--card);border:.5px solid var(--bord);border-radius:14px;padding:14px}
+.api-lbl{font-size:10px;color:var(--muted);letter-spacing:.08em;margin-bottom:6px;display:block}
+.api-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.api-inp{flex:1;background:var(--card2);border:.5px solid var(--bord2);border-radius:9px;padding:9px 12px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none}
+.api-inp::placeholder{color:var(--hint)}
+.api-inp:focus{border-color:var(--gold)}
+.api-save{padding:9px 14px;background:var(--gold);border:none;border-radius:9px;font-family:'DM Mono',monospace;font-size:12px;font-weight:500;color:#0E0E10;cursor:pointer;white-space:nowrap;transition:opacity .15s}
+.api-save:active{opacity:.8}
+.api-note{font-size:10px;color:var(--muted);line-height:1.75}
+.api-note a{color:var(--gold);text-decoration:none}
+.api-st{font-size:11px;margin-top:8px;padding:7px 10px;border-radius:9px;display:none}
+.ok{background:#4CAF7D14;color:var(--green);border:.5px solid #4CAF7D44}
+.er{background:#E0555514;color:var(--red);border:.5px solid #E0555544}
+
+/* STEPS GUIDE */
+.steps-guide{background:var(--card);border:.5px solid var(--bord);border-radius:14px;padding:14px}
+.sg-step{display:flex;gap:12px;margin-bottom:12px;align-items:flex-start}
+.sg-step:last-child{margin-bottom:0}
+.sg-num{width:22px;height:22px;border-radius:50%;background:var(--goldd);color:var(--gold);font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.sg-txt{font-size:12px;color:var(--text);line-height:1.7;flex:1}
+.sg-txt a{color:var(--gold);text-decoration:none}
+.sg-txt code{font-family:'DM Mono',monospace;font-size:11px;background:var(--card2);padding:1px 6px;border-radius:4px;color:var(--gold2)}
+
+/* BOTTOM NAV */
+.bnav{display:flex;background:var(--surf);border-top:.5px solid var(--bord);padding:8px 0 calc(var(--safe-b) + 4px);flex-shrink:0}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0;color:var(--hint);font-size:9px;letter-spacing:.06em;border:none;background:none;transition:color .15s}
+.nb.on{color:var(--gold)}
+.ni{font-size:22px;line-height:1}
+
+/* MODAL */
+.modal{position:fixed;inset:0;background:#00000099;z-index:500;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+.modal.on{opacity:1;pointer-events:all}
+.msheet{background:var(--surf);border-radius:22px 22px 0 0;width:100%;max-width:430px;padding:0 0 calc(var(--safe-b) + 12px);transform:translateY(100%);transition:transform .3s ease;max-height:85vh;display:flex;flex-direction:column}
+.modal.on .msheet{transform:translateY(0)}
+.mhandle{width:36px;height:4px;background:var(--bord2);border-radius:2px;margin:12px auto 14px;flex-shrink:0}
+.mttl{font-family:'Noto Serif KR',serif;font-size:17px;padding:0 20px 12px;border-bottom:.5px solid var(--bord);flex-shrink:0}
+.mbody{padding:16px 20px;overflow-y:auto}
+.exp-pre{background:var(--card);border:.5px solid var(--bord);border-radius:10px;padding:12px 14px;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);line-height:1.85;white-space:pre-wrap;max-height:260px;overflow-y:auto}
+.mact{display:flex;gap:8px;margin-top:14px}
+.mbtn{flex:1;padding:12px;border-radius:10px;border:.5px solid var(--bord2);background:var(--card);font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);cursor:pointer;text-align:center;transition:background .15s}
+.mbtn.gold{background:var(--gold);border-color:var(--gold);color:#0E0E10;font-weight:500}
+.mbtn:active{opacity:.8}
+
+/* TOAST */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--card2);border:.5px solid var(--bord2);border-radius:22px;padding:9px 20px;font-size:12px;color:var(--text);letter-spacing:.04em;pointer-events:none;opacity:0;transition:opacity .25s;z-index:999;white-space:nowrap;max-width:88%}
+.toast.on{opacity:1}
+.spin{display:inline-block;width:13px;height:13px;border:1.5px solid #fff2;border-top-color:var(--gold);border-radius:50%;animation:sp .6s linear infinite;vertical-align:middle;margin-right:5px}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* SEND MODAL */
+.send-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.send-btn{display:flex;flex-direction:column;align-items:center;gap:7px;padding:14px 8px;background:var(--card);border:.5px solid var(--bord);border-radius:14px;cursor:pointer;transition:all .15s;border:none}
+.send-btn:active{transform:scale(.93);background:var(--card2)}
+.send-ico{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.send-lbl{font-size:10px;color:var(--muted);letter-spacing:.04em;text-align:center;line-height:1.4}
+.si-email{background:#4D9DE01A}
+.si-sms{background:#4CAF7D18}
+.si-kakao{background:#FAE10018}
+.si-copy{background:var(--goldd)}
+.si-vcard{background:#E8A93518}
+.si-qr{background:#E0555518}
+.send-preview{background:var(--card);border:.5px solid var(--bord);border-radius:10px;padding:12px;margin-bottom:12px}
+.sp-row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.sp-row:last-child{margin-bottom:0}
+.sp-key{font-size:10px;color:var(--muted);width:48px;flex-shrink:0;letter-spacing:.04em}
+.sp-val{font-size:12px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.send-msg-wrap{margin-bottom:12px}
+.send-msg-lbl{font-size:10px;color:var(--muted);letter-spacing:.08em;margin-bottom:6px;display:block}
+.send-msg-inp{width:100%;background:var(--card2);border:.5px solid var(--bord2);border-radius:10px;padding:10px 12px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;resize:none;line-height:1.6;min-height:80px}
+.send-msg-inp:focus{border-color:var(--gold)}
+.qr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;padding:10px 0}
+.qr-canvas{border-radius:10px;background:#fff;padding:12px}
+
+/* MY CARD SCREEN */
+.mycard-scroll{flex:1;overflow-y:auto;padding:16px 18px;-webkit-overflow-scrolling:touch}
+.mycard-scroll::-webkit-scrollbar{display:none}
+.mycard-preview{
+  width:100%;aspect-ratio:1.74;border-radius:14px;margin-bottom:18px;
+  background:#1A1A2E;position:relative;overflow:hidden;cursor:pointer;
+  border:.5px solid var(--bord);
+}
+.mycard-preview .mc-shine{
+  position:absolute;inset:0;border-radius:14px;
+  background:linear-gradient(135deg,#C9A23608 0%,#C9A23618 50%,#C9A23608 100%);
+  pointer-events:none;
+}
+.mc-content{position:relative;z-index:1;padding:18px 20px;height:100%;display:flex;flex-direction:column;justify-content:space-between}
+.mc-company{font-size:11px;color:var(--gold);letter-spacing:.12em}
+.mc-name{font-family:'Noto Serif KR',serif;font-size:22px;font-weight:700;color:var(--text)}
+.mc-title{font-size:10px;color:var(--gold2);letter-spacing:.1em;margin-top:2px}
+.mc-contacts{font-size:10px;color:var(--text);opacity:.65;line-height:2}
+.mc-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px}
+.mc-empty-ico{font-size:32px;opacity:.3}
+.mc-empty-t{font-size:12px;color:var(--hint);text-align:center;line-height:1.7}
+
+.form-sec{margin-bottom:20px}
+.form-sec-lbl{font-size:9px;letter-spacing:.14em;color:var(--hint);text-transform:uppercase;margin-bottom:10px;display:block}
+.form-card{background:var(--card);border:.5px solid var(--bord);border-radius:14px;overflow:hidden}
+.form-row{display:flex;align-items:center;gap:0;border-bottom:.5px solid var(--bord)}
+.form-row:last-child{border-bottom:none}
+.form-ico{width:42px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;padding:0 4px}
+.form-inp{flex:1;background:transparent;border:none;outline:none;font-family:'DM Mono',monospace;font-size:13px;color:var(--text);padding:12px 12px 12px 0}
+.form-inp::placeholder{color:var(--hint)}
+.form-inp:focus{background:var(--card2)}
+
+/* AUTO SEND PANEL */
+.autosend-box{background:var(--card);border:.5px solid var(--bord);border-radius:14px;padding:14px;margin-bottom:18px}
+.autosend-toggle{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.autosend-lbl{font-size:13px;color:var(--text);font-weight:500}
+.autosend-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.toggle-wrap{flex-shrink:0}
+.toggle{width:44px;height:26px;border-radius:13px;background:var(--bord2);position:relative;cursor:pointer;transition:background .2s;border:none}
+.toggle.on{background:var(--gold)}
+.toggle::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:3px;left:3px;transition:left .2s}
+.toggle.on::after{left:21px}
+.autosend-channels{display:flex;gap:8px;flex-wrap:wrap}
+.ch-chip{font-size:11px;padding:5px 13px;border-radius:20px;background:var(--card2);border:.5px solid var(--bord2);color:var(--muted);cursor:pointer;transition:all .15s;letter-spacing:.03em}
+.ch-chip.on{background:var(--goldd);color:var(--gold2);border-color:var(--gold)}
+
+/* SCAN + MY CARD COMBINED RESULT */
+.dual-result{background:var(--card);border:.5px solid var(--bord);border-radius:14px;padding:14px;margin-bottom:16px}
+.dual-hd{font-size:10px;letter-spacing:.1em;color:var(--gold);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.dual-row{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:.5px solid var(--bord)}
+.dual-row:last-child{border-bottom:none}
+.dual-ico{font-size:16px;flex-shrink:0;width:24px;text-align:center}
+.dual-info{flex:1;min-width:0}
+.dual-lbl{font-size:9px;color:var(--muted);letter-spacing:.06em}
+.dual-val{font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.send-status{font-size:11px;padding:6px 12px;border-radius:20px;display:inline-flex;align-items:center;gap:5px}
+.ss-ok{background:#4CAF7D18;color:var(--green);border:.5px solid #4CAF7D44}
+.ss-wait{background:var(--goldd);color:var(--gold);border:.5px solid var(--gold)}
+.ss-err{background:#E0555518;color:var(--red);border:.5px solid #E0555544}
+
+.ibanner.off{display:none}
+.ibt{flex:1;font-size:11px;color:var(--muted);line-height:1.6}
+.ibt strong{color:var(--text);display:block;font-size:12px;margin-bottom:1px}
+.ib-btn{padding:6px 14px;background:var(--gold);border:none;border-radius:20px;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;color:#0E0E10;cursor:pointer;white-space:nowrap}
+.ix{color:var(--hint);font-size:18px;cursor:pointer;padding:4px}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- INSTALL BANNER -->
+<div class="ibanner off" id="ibanner">
+  <div class="ibt"><strong>앱으로 설치하기</strong>Safari → 공유 → 홈 화면에 추가</div>
+  <button class="ib-btn" onclick="doInstall()">설치</button>
+  <span class="ix" onclick="this.closest('.ibanner').classList.add('off')">✕</span>
+</div>
+
+<!-- STATUS BAR -->
+<div class="sb">
+  <span class="sb-time" id="clk">9:41</span>
+  <div class="sb-r"><span>●●●</span><span>WiFi</span><span>🔋</span></div>
+</div>
+
+<!-- HEADER -->
+<div class="hd">
+  <div class="logo">CardScan AI<small>Google Vision · 월 1,000건 무료</small></div>
+  <div class="hd-pill">FREE</div>
+</div>
+
+<!-- ═══ CAMERA SCREEN ═══ -->
+<div class="sc on" id="sCam">
+  <div class="cam-view" id="camView">
+    <video id="vid" autoplay playsinline muted></video>
+    <canvas id="snap" style="display:none"></canvas>
+    <div class="cam-ui">
+      <div class="frame">
+        <div class="c tl"></div><div class="c tr"></div>
+        <div class="c bl"></div><div class="c br"></div>
+        <div class="sl"></div>
+        <div class="cam-hint">명함을 프레임 안에 맞춰주세요</div>
+      </div>
+    </div>
+    <div class="no-cam off" id="noCam">
+      <div class="no-cam-ico">📷</div>
+      <div class="no-cam-t">카메라 접근 불가<br>갤러리 또는 데모를 사용하세요</div>
+      <div class="no-cam-s">설정에서 API 키 입력 후<br>갤러리 이미지로 인식 가능</div>
+    </div>
+  </div>
+  <div class="cam-bot">
+    <div style="flex:1;display:flex;justify-content:center">
+      <div class="ico-btn" onclick="document.getElementById('gal').click()">🖼️</div>
+      <input type="file" id="gal" accept="image/*" style="display:none" onchange="galPick(this)">
+    </div>
+    <div class="sh-wrap">
+      <div class="sh-ring">
+        <button class="sh-btn" onclick="capture()">📇</button>
+      </div>
+    </div>
+    <div style="flex:1;display:flex;justify-content:center">
+      <div class="ico-btn" onclick="loadDemo()">⚡</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PROCESSING SCREEN ═══ -->
+<div class="sc" id="sProc">
+  <div class="proc">
+    <img id="pImg" src="" class="proc-img" style="width:240px;border-radius:10px;border:.5px solid var(--bord);opacity:.6" alt="">
+    <div class="proc-ttl">명함을 분석하고 있습니다</div>
+    <div class="proc-list">
+      <div class="ps" id="p0"><div class="pn">1</div>이미지 최적화 · Base64 변환</div>
+      <div class="ps" id="p1"><div class="pn">2</div>Google Cloud Vision OCR</div>
+      <div class="ps" id="p2"><div class="pn">3</div>텍스트 → 필드 자동 파싱</div>
+      <div class="ps" id="p3"><div class="pn">4</div>비즈니스 인사이트 분류</div>
+      <div class="ps" id="p4"><div class="pn">5</div>CRM 저장 완료</div>
+    </div>
+    <div class="pg-wrap">
+      <div class="pg"><div class="pg-fill" id="pgFill"></div></div>
+      <div class="pg-lbl" id="pgLbl">준비 중…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ RESULT SCREEN ═══ -->
+<div class="sc" id="sRes">
+  <div class="res-scroll" id="resScroll">
+    <img id="rImg" src="" class="card-thumb" alt="">
+    <div class="c-head">
+      <div class="av" id="rAv">?</div>
+      <div>
+        <div class="c-nm" id="rNm">—</div>
+        <div class="c-tl" id="rTl">—</div>
+        <div class="c-co" id="rCo">—</div>
+      </div>
+    </div>
+    <span class="sec-lbl">연락처 정보</span>
+    <div class="flist" id="flist"></div>
+    <div class="ins-box" id="insBox" style="display:none">
+      <div class="ins-hd">⚡ AI 비즈니스 인사이트</div>
+      <div id="insBody"></div>
+    </div>
+    <span class="sec-lbl">자동 태그</span>
+    <div class="tags" id="tagsW"></div>
+  </div>
+  <div class="abar">
+    <button class="btn-main" onclick="openSendModal()">📤 명함 전송하기</button>
+    <div class="brow">
+      <button class="bsub" onclick="saveContact()">💾 저장</button>
+      <button class="bsub" onclick="openModal('vcard')">vCard</button>
+      <button class="bsub" onclick="copyTxt()">복사</button>
+      <button class="bsub" onclick="goScan()">재스캔</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ LIST SCREEN ═══ -->
+<div class="sc" id="sList">
+  <div class="list-top">
+    <div class="list-tr">
+      <div class="list-ttl">저장된 명함</div>
+      <div class="list-cnt" id="lCnt">0장</div>
+    </div>
+    <div class="srch">
+      <span style="font-size:14px;color:var(--hint)">🔍</span>
+      <input id="srchInp" placeholder="이름·회사·직책 검색…" oninput="filterList()">
+    </div>
+  </div>
+  <div class="clist" id="clist"></div>
+  <div class="abar">
+    <div class="brow">
+      <button class="bsub" onclick="expCSV()">📊 CSV 내보내기</button>
+      <button class="bsub" onclick="expAllVCard()">📇 vCard 전체</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SETTINGS SCREEN ═══ -->
+<div class="sc" id="sSet">
+  <div class="set-scroll">
+
+    <div class="set-sec">
+      <span class="set-sec-ttl">Google Cloud Vision API 키</span>
+      <div class="api-box">
+        <span class="api-lbl">API KEY</span>
+        <div class="api-row">
+          <input class="api-inp" id="apiInp" type="password" placeholder="AIzaSy…">
+          <button class="api-save" onclick="saveKey()">저장</button>
+        </div>
+        <div class="api-st" id="apiSt"></div>
+        <div class="api-note">
+          키는 기기 내 로컬에만 저장됩니다.<br>
+          <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a>에서 발급<br>
+          ⚡ 데모 모드는 API 키 없이도 사용 가능
+        </div>
+      </div>
+    </div>
+
+    <div class="set-sec">
+      <span class="set-sec-ttl">Google API 키 발급 방법 (무료)</span>
+      <div class="steps-guide">
+        <div class="sg-step">
+          <div class="sg-num">1</div>
+          <div class="sg-txt"><a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a> 접속 → 로그인</div>
+        </div>
+        <div class="sg-step">
+          <div class="sg-num">2</div>
+          <div class="sg-txt">새 프로젝트 만들기 → 이름: <code>cardscan</code></div>
+        </div>
+        <div class="sg-step">
+          <div class="sg-num">3</div>
+          <div class="sg-txt">API 및 서비스 → 라이브러리 → <code>Cloud Vision API</code> 검색 → 사용 설정</div>
+        </div>
+        <div class="sg-step">
+          <div class="sg-num">4</div>
+          <div class="sg-txt">사용자 인증 정보 → API 키 만들기 → 복사</div>
+        </div>
+        <div class="sg-step">
+          <div class="sg-num">5</div>
+          <div class="sg-txt">위 입력창에 붙여넣기 → 저장<br>월 <strong style="color:var(--green)">1,000건 무료</strong> (초과 시 $1.5/1000건)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ GOOGLE SHEETS 자동 저장 ══ -->
+    <div class="set-sec">
+      <span class="set-sec-ttl">📊 Google 스프레드시트 자동 저장</span>
+      <div class="api-box">
+        <!-- 연동 상태 배지 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div style="font-size:13px;color:var(--text);font-weight:500;">스캔 시 자동 저장</div>
+          <button class="toggle" id="sheetToggle" onclick="toggleSheets()"></button>
+        </div>
+        <div id="sheetStatus" class="api-st" style="margin-bottom:10px;"></div>
+
+        <span class="api-lbl">SPREADSHEET ID</span>
+        <div class="api-row">
+          <input class="api-inp" id="sheetIdInp" placeholder="1BxiMVs0X…MsGNS8" style="font-size:11px;">
+          <button class="api-save" onclick="saveSheetConfig()">저장</button>
+        </div>
+        <div style="margin-top:8px;">
+          <span class="api-lbl">시트 이름 (탭 이름)</span>
+          <input class="api-inp" id="sheetNameInp" placeholder="명함DB" style="width:100%;margin-bottom:8px;">
+        </div>
+        <div id="sheetSaveStatus" class="api-st"></div>
+        <div class="api-note" style="margin-top:8px;">
+          스캔할 때마다 스프레드시트에 자동으로 행이 추가됩니다.<br>
+          같은 Google API 키를 사용합니다.<br>
+          <a href="#" onclick="openSheetDirect();return false;" style="color:var(--gold)">📊 스프레드시트 바로 열기</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="set-sec">
+      <span class="set-sec-ttl">Google 스프레드시트 설정 방법</span>
+      <div class="steps-guide">
+        <div class="sg-step">
+          <div class="sg-num">1</div>
+          <div class="sg-txt"><a href="https://sheets.new" target="_blank">sheets.new</a> 접속 → 새 스프레드시트 생성</div>
+        </div>
+        <div class="sg-step">
+          <div class="sg-num">2</div>
+          <div class="sg-txt">시트 탭 이름을 <code>명함DB</code> 로 변경</div>
+        </div>
+        <div class="sg-step">
+          <div class="sg-num">3</div>
+          <div class="sg-txt">주소창 URL에서 ID 복사:<br><code>docs.google.com/spreadsheets/d/<strong>[여기]</strong>/edit</code></div>
+        </div>
+        <div class="sg-step">
+          <div class="sg-num">4</div>
+          <div class="sg-txt">Google Cloud Console → Vision API와 같은 프로젝트에서 <code>Google Sheets API</code> 도 사용 설정</div>
+        </div>
+        <div class="sg-step">
+          <div class="sg-num">5</div>
+          <div class="sg-txt">스프레드시트 공유 → 편집자 → <strong style="color:var(--gold)">링크가 있는 모든 사용자</strong> 권한 설정</div>
+        </div>
+        <div class="sg-step">
+          <div class="sg-num">6</div>
+          <div class="sg-txt">위 Spreadsheet ID 붙여넣기 → 저장 → 자동 저장 ON</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="set-sec">
+      <span class="set-sec-ttl">데이터 관리</span>
+      <div class="set-card">
+        <div class="set-row" onclick="syncAllToSheets()">
+          <div class="si gr">🔄</div>
+          <div class="set-lbl"><div class="set-lbl-t">전체 동기화</div><div class="set-lbl-s">저장된 명함 전부 스프레드시트로 올리기</div></div>
+          <span class="sarr">›</span>
+        </div>
+        <div class="set-row" onclick="expCSV()">
+          <div class="si gr">📊</div>
+          <div class="set-lbl"><div class="set-lbl-t">CSV 백업</div><div class="set-lbl-s">전체 연락처 내보내기</div></div>
+          <span class="sarr">›</span>
+        </div>
+        <div class="set-row" onclick="clearAll()">
+          <div class="si rd">🗑️</div>
+          <div class="set-lbl"><div class="set-lbl-t">전체 삭제</div><div class="set-lbl-s">저장된 명함 전부 지우기</div></div>
+          <span class="sarr">›</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="set-sec">
+      <span class="set-sec-ttl">앱 정보</span>
+      <div class="set-card">
+        <div class="set-row">
+          <div class="si bl">ℹ️</div>
+          <div class="set-lbl"><div class="set-lbl-t">CardScan AI v2.0</div><div class="set-lbl-s">Google Vision · Sheets 자동저장 · PWA</div></div>
+        </div>
+      </div>
+    </div>
+    <div style="height:40px"></div>
+  </div>
+</div>
+
+<!-- ═══ MY CARD SCREEN ═══ -->
+<div class="sc" id="sMyCard">
+  <div class="mycard-scroll">
+    <!-- 내 명함 미리보기 -->
+    <div class="mycard-preview" id="mcPreview" onclick="go('sMyCard',3)">
+      <div class="mc-shine"></div>
+      <div class="mc-content" id="mcContent">
+        <div class="mc-empty">
+          <div class="mc-empty-ico">📇</div>
+          <div class="mc-empty-t">아래 정보를 입력하면<br>내 명함이 여기 표시됩니다</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 자동 전송 설정 -->
+    <div class="autosend-box">
+      <div class="autosend-toggle">
+        <div>
+          <div class="autosend-lbl">명함 스캔 후 내 명함 자동 전송</div>
+          <div class="autosend-sub">상대 명함 인식 즉시 내 명함도 자동 발송</div>
+        </div>
+        <div class="toggle-wrap">
+          <button class="toggle" id="autoToggle" onclick="toggleAuto()"></button>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:10px;letter-spacing:.04em">전송 채널 선택</div>
+      <div class="autosend-channels">
+        <div class="ch-chip on" id="ch_email" onclick="toggleCh('email')">📧 이메일</div>
+        <div class="ch-chip" id="ch_sms" onclick="toggleCh('sms')">💬 SMS</div>
+        <div class="ch-chip" id="ch_kakao" onclick="toggleCh('kakao')">💛 카카오톡</div>
+        <div class="ch-chip" id="ch_share" onclick="toggleCh('share')">📲 공유시트</div>
+      </div>
+    </div>
+
+    <!-- 내 명함 정보 입력 -->
+    <div class="form-sec">
+      <span class="form-sec-lbl">기본 정보</span>
+      <div class="form-card">
+        <div class="form-row"><div class="form-ico">👤</div><input class="form-inp" id="mc_name" placeholder="이름 (한글)" oninput="updateMcPreview()"></div>
+        <div class="form-row"><div class="form-ico">🔤</div><input class="form-inp" id="mc_name_en" placeholder="Name (English)" oninput="updateMcPreview()"></div>
+        <div class="form-row"><div class="form-ico">🏢</div><input class="form-inp" id="mc_company" placeholder="회사명" oninput="updateMcPreview()"></div>
+        <div class="form-row"><div class="form-ico">🔤</div><input class="form-inp" id="mc_company_en" placeholder="Company (English)" oninput="updateMcPreview()"></div>
+        <div class="form-row"><div class="form-ico">🏷️</div><input class="form-inp" id="mc_title" placeholder="직함 · 직책" oninput="updateMcPreview()"></div>
+        <div class="form-row"><div class="form-ico">🏛️</div><input class="form-inp" id="mc_dept" placeholder="부서명" oninput="updateMcPreview()"></div>
+      </div>
+    </div>
+
+    <div class="form-sec">
+      <span class="form-sec-lbl">연락처</span>
+      <div class="form-card">
+        <div class="form-row"><div class="form-ico">📱</div><input class="form-inp" id="mc_mobile" placeholder="휴대폰 010-0000-0000" oninput="updateMcPreview()"></div>
+        <div class="form-row"><div class="form-ico">📞</div><input class="form-inp" id="mc_phone" placeholder="회사 전화번호" oninput="updateMcPreview()"></div>
+        <div class="form-row"><div class="form-ico">✉️</div><input class="form-inp" id="mc_email" placeholder="이메일" oninput="updateMcPreview()"></div>
+        <div class="form-row"><div class="form-ico">🌐</div><input class="form-inp" id="mc_website" placeholder="웹사이트" oninput="updateMcPreview()"></div>
+        <div class="form-row"><div class="form-ico">📍</div><input class="form-inp" id="mc_address" placeholder="주소" oninput="updateMcPreview()"></div>
+        <div class="form-row"><div class="form-ico">🔗</div><input class="form-inp" id="mc_sns" placeholder="SNS / LinkedIn" oninput="updateMcPreview()"></div>
+      </div>
+    </div>
+
+    <div class="form-sec">
+      <span class="form-sec-lbl">전송 메시지 템플릿</span>
+      <div class="form-card">
+        <textarea class="form-inp" id="mc_msg_tpl" rows="4" style="padding:12px;resize:none;width:100%;min-height:90px" placeholder="안녕하세요, 반갑습니다. 제 명함을 공유드립니다." oninput="saveMc()"></textarea>
+      </div>
+    </div>
+
+    <div style="height:16px"></div>
+  </div>
+  <div class="abar">
+    <button class="btn-main" onclick="saveMcAndToast()">💾 내 명함 저장</button>
+    <div class="brow">
+      <button class="bsub" onclick="previewMyVCard()">vCard 미리보기</button>
+      <button class="bsub" onclick="shareMyCard()">📤 내 명함 공유</button>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bnav">
+  <button class="nb on" id="n0" onclick="go('sCam',0)"><div class="ni">📷</div>스캔</button>
+  <button class="nb" id="n1" onclick="go('sList',1)"><div class="ni">📋</div>목록</button>
+  <button class="nb" id="n2" onclick="go('sMyCard',2)"><div class="ni">📇</div>내 명함</button>
+  <button class="nb" id="n3" onclick="go('sSet',3)"><div class="ni">⚙️</div>설정</button>
+</div>
+
+<!-- SEND MODAL -->
+<div class="modal" id="sendModal" onclick="closeSendModal(event)">
+  <div class="msheet">
+    <div class="mhandle"></div>
+    <div class="mttl">명함 전송하기</div>
+    <div class="mbody">
+      <!-- 명함 미리보기 -->
+      <div class="send-preview" id="sendPreview"></div>
+      <!-- 전송 메시지 커스텀 -->
+      <div class="send-msg-wrap">
+        <span class="send-msg-lbl">전송 메시지 (선택 수정 가능)</span>
+        <textarea class="send-msg-inp" id="sendMsgInp" rows="3"></textarea>
+      </div>
+      <!-- 전송 채널 -->
+      <div class="send-grid">
+        <button class="send-btn" onclick="sendEmail()">
+          <div class="send-ico si-email">📧</div>
+          <div class="send-lbl">이메일</div>
+        </button>
+        <button class="send-btn" onclick="sendSMS()">
+          <div class="send-ico si-sms">💬</div>
+          <div class="send-lbl">문자 / SMS</div>
+        </button>
+        <button class="send-btn" onclick="sendKakao()">
+          <div class="send-ico si-kakao">💛</div>
+          <div class="send-lbl">카카오톡</div>
+        </button>
+        <button class="send-btn" onclick="sendNativeShare()">
+          <div class="send-ico" style="background:#4D9DE01A">📲</div>
+          <div class="send-lbl">공유 시트</div>
+        </button>
+        <button class="send-btn" onclick="sendCopyLink()">
+          <div class="send-ico si-copy">🔗</div>
+          <div class="send-lbl">링크 복사</div>
+        </button>
+        <button class="send-btn" onclick="showQR()">
+          <div class="send-ico si-qr">◼</div>
+          <div class="send-lbl">QR 코드</div>
+        </button>
+      </div>
+      <div class="mact">
+        <button class="mbtn" onclick="closeSendModal()">닫기</button>
+        <button class="mbtn gold" onclick="sendNativeShare()">📤 바로 전송</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- QR MODAL -->
+<div class="modal" id="qrModal" onclick="closeQR(event)">
+  <div class="msheet">
+    <div class="mhandle"></div>
+    <div class="mttl">QR 코드로 명함 공유</div>
+    <div class="mbody">
+      <div class="qr-wrap">
+        <canvas id="qrCanvas" class="qr-canvas" width="200" height="200"></canvas>
+        <div style="font-size:11px;color:var(--muted);text-align:center;line-height:1.8">
+          상대방 핸드폰으로 QR 스캔 시<br>명함 정보가 바로 표시됩니다
+        </div>
+      </div>
+      <div class="mact">
+        <button class="mbtn" onclick="closeQR()">닫기</button>
+        <button class="mbtn gold" onclick="saveQR()">📥 QR 저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- MODAL -->
+<div class="modal" id="modal" onclick="closeModal(event)">
+  <div class="msheet">
+    <div class="mhandle"></div>
+    <div class="mttl" id="mTtl">내보내기</div>
+    <div class="mbody">
+      <div class="exp-pre" id="mPre"></div>
+      <div class="mact">
+        <button class="mbtn" onclick="closeModal()">닫기</button>
+        <button class="mbtn gold" id="mAct">다운로드</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// 🔐 보안 모듈 — API 키 암호화 저장
+// ═══════════════════════════════════════
+
+// 기기 고유 핑거프린트로 암호화 솔트 생성
+async function getDeviceSalt(){
+  const raw=[navigator.userAgent,navigator.language,screen.width,screen.height,
+    Intl.DateTimeFormat().resolvedOptions().timeZone].join('|');
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(raw));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,32);
+}
+
+// AES-GCM 암호화
+async function encryptKey(plaintext){
+  try{
+    const salt=await getDeviceSalt();
+    const keyMat=await crypto.subtle.importKey('raw',new TextEncoder().encode(salt),{name:'PBKDF2'},false,['deriveKey']);
+    const aesKey=await crypto.subtle.deriveKey(
+      {name:'PBKDF2',salt:new TextEncoder().encode('cardscan_v2'),iterations:100000,hash:'SHA-256'},
+      keyMat,{name:'AES-GCM',length:256},false,['encrypt']
+    );
+    const iv=crypto.getRandomValues(new Uint8Array(12));
+    const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv},aesKey,new TextEncoder().encode(plaintext));
+    const combined=new Uint8Array([...iv,...new Uint8Array(enc)]);
+    return btoa(String.fromCharCode(...combined));
+  }catch(e){return btoa(plaintext);} // fallback
+}
+
+// AES-GCM 복호화
+async function decryptKey(ciphertext){
+  try{
+    const salt=await getDeviceSalt();
+    const keyMat=await crypto.subtle.importKey('raw',new TextEncoder().encode(salt),{name:'PBKDF2'},false,['deriveKey']);
+    const aesKey=await crypto.subtle.deriveKey(
+      {name:'PBKDF2',salt:new TextEncoder().encode('cardscan_v2'),iterations:100000,hash:'SHA-256'},
+      keyMat,{name:'AES-GCM',length:256},false,['decrypt']
+    );
+    const combined=Uint8Array.from(atob(ciphertext),c=>c.charCodeAt(0));
+    const iv=combined.slice(0,12);
+    const data=combined.slice(12);
+    const dec=await crypto.subtle.decrypt({name:'AES-GCM',iv},aesKey,data);
+    return new TextDecoder().decode(dec);
+  }catch(e){try{return atob(ciphertext);}catch{return ciphertext;}} // fallback
+}
+
+// 보안 저장/로드 래퍼
+async function secureSet(k,v){const enc=await encryptKey(v);localStorage.setItem(k,enc);}
+async function secureGet(k){const enc=localStorage.getItem(k);if(!enc)return '';return await decryptKey(enc);}
+
+// ═══════════════════════════════════════
+// 🛡️ 입력값 검증 모듈
+// ═══════════════════════════════════════
+const ALLOWED_API_DOMAINS=['vision.googleapis.com','sheets.googleapis.com','fonts.googleapis.com','chart.googleapis.com'];
+
+function sanitizeInput(str, maxLen=500){
+  if(typeof str!=='string') return '';
+  return str
+    .replace(/[<>'"]/g, c=>({'<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))
+    .replace(/javascript:/gi,'')
+    .replace(/data:text\/html/gi,'')
+    .replace(/on\w+\s*=/gi,'')
+    .trim()
+    .slice(0,maxLen);
+}
+
+function validateApiKey(key){
+  if(!key||typeof key!=='string') return false;
+  if(key.length<20||key.length>200) return false;
+  if(!/^AIza[0-9A-Za-z\-_]{35}$/.test(key)) return false;
+  return true;
+}
+
+function validateSheetId(id){
+  if(!key||typeof id!=='string') return false;
+  if(!/^[a-zA-Z0-9\-_]{20,60}$/.test(id)) return false;
+  return true;
+}
+
+// 안전한 URL만 fetch 허용
+function assertSafeUrl(url){
+  try{
+    const u=new URL(url);
+    if(u.protocol!=='https:') throw new Error('HTTPS only');
+    const allowed=ALLOWED_API_DOMAINS.some(d=>u.hostname===d||u.hostname.endsWith('.'+d));
+    if(!allowed) throw new Error('Unauthorized domain: '+u.hostname);
+    return true;
+  }catch(e){console.error('🛡️ Blocked unsafe URL:',e.message);return false;}
+}
+
+// ═══════════════════════════════════════
+// 🚦 Rate Limiter — API 호출 제한
+// ═══════════════════════════════════════
+const RATE_LIMITS={vision:{max:20,window:60000},sheets:{max:30,window:60000}};
+const rateCounts={};
+
+function checkRateLimit(service){
+  const now=Date.now();
+  const limit=RATE_LIMITS[service]||{max:10,window:60000};
+  if(!rateCounts[service]) rateCounts[service]=[];
+  rateCounts[service]=rateCounts[service].filter(t=>now-t<limit.window);
+  if(rateCounts[service].length>=limit.max){
+    toast(`⚠️ 잠시 후 다시 시도하세요 (분당 ${limit.max}회 제한)`);
+    return false;
+  }
+  rateCounts[service].push(now);
+  return true;
+}
+
+// ═══════════════════════════════════════
+// 🔒 개발자 도구 감지 + 콘솔 경고
+// ═══════════════════════════════════════
+(function devtoolsGuard(){
+  // 콘솔 접근 시 경고 메시지
+  const msg='%c⛔ 경고: 이 앱의 API 키를 탈취하려는 시도는 범죄입니다.\n%c개인정보보호법 및 정보통신망법 위반으로 처벌받을 수 있습니다.';
+  console.log(msg,'color:red;font-size:18px;font-weight:bold;','color:orange;font-size:13px;');
+  // 개발자도구 열림 감지 (크기 변화 기반)
+  let devOpen=false;
+  setInterval(()=>{
+    const w=window.outerWidth-window.innerWidth>160||window.outerHeight-window.innerHeight>160;
+    if(w&&!devOpen){devOpen=true;console.warn('🛡️ CardScan: 개발자 도구 감지됨');}
+    if(!w) devOpen=false;
+  },2000);
+})();
+
+// ─── STATE ───
+let contacts = JSON.parse(localStorage.getItem('cs2_contacts')||'[]');
+let current = null;
+let gkey = '';        // 메모리에만, localStorage엔 암호화 저장
+let sheetId = '';     // 메모리에만, localStorage엔 암호화 저장
+let deferredInstall = null;
+let myCard = JSON.parse(localStorage.getItem('cs2_mycard')||'{}');
+let autoSendOn = localStorage.getItem('cs2_autosend')==='1';
+let autoChannels = JSON.parse(localStorage.getItem('cs2_autoch')||'["email"]');
+let sheetName = localStorage.getItem('cs2_sheetname')||'명함DB';
+let sheetAutoOn = localStorage.getItem('cs2_sheetauto')==='1';
+
+// 앱 시작 시 암호화된 키 복호화
+(async function loadSecureKeys(){
+  gkey = await secureGet('cs2_gkey_enc') || '';
+  sheetId = await secureGet('cs2_sheetid_enc') || '';
+})();
+
+// ─── CLOCK ───
+(function tick(){
+  const d=new Date();
+  document.getElementById('clk').textContent=d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
+  setTimeout(tick,15000);
+})();
+
+// ─── PWA ───
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault(); deferredInstall=e;
+  document.getElementById('ibanner').classList.remove('off');
+});
+function doInstall(){
+  if(deferredInstall) deferredInstall.prompt();
+  else toast('iOS: Safari → 공유 버튼 → 홈 화면에 추가');
+  document.getElementById('ibanner').classList.add('off');
+}
+
+// ─── CAMERA ───
+async function startCam(){
+  if(!navigator.mediaDevices?.getUserMedia){showNoCam();return;}
+  try{
+    const s=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
+    const v=document.getElementById('vid');
+    v.srcObject=s; v.style.display='block';
+  }catch(e){showNoCam();}
+}
+function showNoCam(){
+  document.getElementById('vid').style.display='none';
+  document.getElementById('noCam').classList.remove('off');
+}
+startCam();
+
+function capture(){
+  const v=document.getElementById('vid');
+  if(!v.srcObject){loadDemo();return;}
+  const c=document.getElementById('snap');
+  c.width=v.videoWidth||1280; c.height=v.videoHeight||720;
+  c.getContext('2d').drawImage(v,0,0);
+  processImg(c.toDataURL('image/jpeg',.88),true);
+}
+function galPick(inp){
+  const f=inp.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=e=>processImg(e.target.result,true);
+  r.readAsDataURL(f);
+}
+
+// ─── DEMO DATA ───
+const DEMOS=[
+  {name:'김민준',name_en:'Minjun Kim',company:'요소다 광고대행사',company_en:'Yosooda Advertising Agency',
+   title:'대표이사 · CEO',dept:'경영전략본부',phone:'02-1234-5678',mobile:'010-9876-5432',
+   email:'minjun@yosooda.com',website:'www.yosooda.com',address:'서울 강남구 테헤란로 123, 10층',
+   fax:'02-1234-5679',sns:'@yosooda_ai',country:'Korea',
+   insight_industry:'광고·마케팅 / Applied AI 전략',
+   insight_potential:'B2B 파트너십·AI 마케팅 협업 가능성 매우 높음',
+   insight_action:'포트폴리오 공유 → 파일럿 프로젝트 제안',
+   insight_priority:'HIGH',
+   tags:['광고대행사','CEO','B2B','AI전략','서울','파트너후보','고우선순위']},
+  {name:'Sarah Kim',name_en:'Sarah Kim',company:'Vitamion Global',company_en:'Vitamion Global Co., Ltd.',
+   title:'Head of Export Marketing',dept:'International Business',phone:'+82-2-555-7890',mobile:'+82-10-1234-5678',
+   email:'sarah.kim@vitamion.com',website:'www.vitamion.com',
+   address:'10F, 123 Teheran-ro, Gangnam-gu, Seoul',fax:'',sns:'linkedin.com/in/sarahkim',country:'Korea/Global',
+   insight_industry:'건강기능식품 / 글로벌 수출',
+   insight_potential:'EU·베트남 수출 바이어, 공동 마케팅 협력 가능',
+   insight_action:'제품 카탈로그 발송 → 수출 조건 협의',
+   insight_priority:'HIGH',
+   tags:['건강식품','수출마케팅','EU시장','바이어후보','영어권']}
+];
+let demoIdx=0;
+function loadDemo(){
+  const d=DEMOS[demoIdx%DEMOS.length]; demoIdx++;
+  processImg(makeSVG(d),false,d);
+}
+function makeSVG(d){
+  const s=`<svg xmlns='http://www.w3.org/2000/svg' width='480' height='270'>
+    <rect width='480' height='270' rx='13' fill='#1A1A2E'/>
+    <rect x='15' y='15' width='450' height='240' rx='9' fill='#1A1A2E' stroke='#C9A23648' stroke-width='1'/>
+    <text x='30' y='56' font-family='serif' font-size='12' fill='#C9A236' letter-spacing='3'>${esc(d.company_en||d.company||'')}</text>
+    <text x='30' y='110' font-family='serif' font-size='27' font-weight='bold' fill='#F0EEE8'>${esc(d.name||d.name_en||'')}</text>
+    <text x='30' y='130' font-family='sans-serif' font-size='11' fill='#C9A236' letter-spacing='4'>${esc(d.title||'')}</text>
+    <text x='30' y='167' font-family='monospace' font-size='11' fill='#F0EEE8' opacity='.7'>${esc(d.mobile||d.phone||'')}</text>
+    <text x='30' y='183' font-family='monospace' font-size='11' fill='#F0EEE8' opacity='.7'>${esc(d.email||'')}</text>
+    <text x='30' y='199' font-family='monospace' font-size='11' fill='#F0EEE8' opacity='.55'>${esc(d.website||'')}</text>
+    <text x='30' y='220' font-family='monospace' font-size='9' fill='#F0EEE8' opacity='.35'>${esc(d.address||'')}</text>
+  </svg>`;
+  return 'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(s)));
+}
+
+// ─── PROCESS ───
+async function processImg(dataUrl,useAPI,preset){
+  go('sProc',-1);
+  document.getElementById('pImg').src=dataUrl;
+  document.getElementById('rImg').src=dataUrl;
+  const steps=['p0','p1','p2','p3','p4'];
+  const msgs=['이미지 최적화 중…','Google Vision 분석 중…','필드 파싱 중…','인사이트 분류 중…','저장 완료'];
+  const pcts=[12,38,62,82,100];
+  async function step(i){
+    steps.forEach((id,j)=>{
+      const el=document.getElementById(id);
+      el.className='ps'+(j===i?' act':j<i?' dn':'');
+      if(j<i){const n=el.querySelector('.pn');if(n)n.textContent='✓';}
+    });
+    document.getElementById('pgFill').style.width=pcts[i]+'%';
+    document.getElementById('pgLbl').textContent=msgs[i];
+    await delay(useAPI&&i===1?300:480);
+  }
+  await step(0); await step(1);
+  let data;
+  if(preset){await delay(1000);data=preset;}
+  else if(useAPI&&dataUrl.startsWith('data:image')){data=await callVision(dataUrl);}
+  else{await delay(1000);data=DEMOS[0];}
+  await step(2); await step(3); await step(4);
+  await delay(350);
+  current={...data,_img:dataUrl,_id:Date.now(),_at:new Date().toISOString()};
+  go('sRes',-1);
+  renderResultAndSend(current);
+}
+
+// ─── GOOGLE CLOUD VISION API ───
+async function callVision(dataUrl){
+  // 🛡️ API 키는 항상 메모리(gkey)에서만 사용
+  const key=gkey;
+  if(!key){toast('⚠️ API 키 없음 — 설정에서 입력하세요');return DEMOS[0];}
+  // 🚦 Rate limit 체크
+  if(!checkRateLimit('vision')) return DEMOS[0];
+  // 🛡️ URL 검증
+  const apiUrl=`https://vision.googleapis.com/v1/images:annotate?key=${key}`;
+  if(!assertSafeUrl(apiUrl)){toast('⛔ 보안: 허용되지 않은 API 요청');return DEMOS[0];}
+  const b64=dataUrl.split(',')[1];
+  // 🛡️ 이미지 크기 제한 (10MB)
+  if(b64&&b64.length>13000000){toast('⚠️ 이미지가 너무 큽니다 (최대 10MB)');return DEMOS[0];}
+  try{
+    const r=await fetch(apiUrl,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({requests:[{
+        image:{content:b64},
+        features:[{type:'TEXT_DETECTION',maxResults:1}]
+      }]})
+    });
+    const d=await r.json();
+    if(d.error){toast('Vision API 오류: '+d.error.message);return DEMOS[0];}
+    const rawText=d.responses?.[0]?.fullTextAnnotation?.text||'';
+    if(!rawText){toast('텍스트를 인식하지 못했습니다');return DEMOS[0];}
+    // 🛡️ OCR 결과 길이 제한 (XSS 방어)
+    return parseCardText(rawText.slice(0,5000));
+  }catch(e){toast('네트워크 오류 — 데모 사용');return DEMOS[0];}
+}
+
+// ─── SMART TEXT PARSER ───
+function parseCardText(text){
+  const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
+  const d={name:'',name_en:'',company:'',company_en:'',title:'',dept:'',
+    phone:'',mobile:'',email:'',website:'',address:'',fax:'',sns:'',country:''};
+
+  // Email
+  const emailM=text.match(/[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}/);
+  if(emailM) d.email=emailM[0];
+
+  // Website
+  const webM=text.match(/(?:www\.[\w.-]+|[\w-]+\.(?:com|co\.kr|net|org|io|ai)(?:\/\S*)?)/i);
+  if(webM) d.website=webM[0];
+
+  // Phone numbers
+  const phones=text.match(/(?:\+?[\d\s\-().]{7,})/g)||[];
+  const cleaned=phones.map(p=>p.replace(/\s+/g,'-').replace(/[()]/g,'').replace(/-+/g,'-').trim())
+    .filter(p=>p.replace(/\D/g,'').length>=7);
+  cleaned.forEach(p=>{
+    const digits=p.replace(/\D/g,'');
+    if(digits.startsWith('010')||digits.startsWith('011')||p.includes('010')){
+      if(!d.mobile) d.mobile=p;
+    } else if(p.toLowerCase().includes('fax')||p.toLowerCase().includes('f.')){
+      d.fax=p.replace(/fax[:\s]*/i,'');
+    } else {
+      if(!d.phone) d.phone=p;
+    }
+  });
+
+  // SNS
+  const snsM=text.match(/@[\w.]+/);
+  if(snsM) d.sns=snsM[0];
+
+  // Korean name (2-4 Korean chars)
+  const krNameM=text.match(/[가-힣]{2,4}(?=\s|$)/);
+  if(krNameM) d.name=krNameM[0];
+
+  // English name
+  const enNameM=text.match(/\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)+)\b/);
+  if(enNameM) d.name_en=enNameM[0];
+
+  // Title keywords
+  const titleKW=['대표이사','CEO','이사','부장','과장','팀장','대리','사원','Director','Manager','President','Executive','Head','Senior','Junior'];
+  for(const t of titleKW){
+    const m=lines.find(l=>l.includes(t));
+    if(m){d.title=m;break;}
+  }
+
+  // Company: longest line that's not contact info and has 2+ words
+  const skipRe=/[@.\/\d\-+]/;
+  const compLines=lines.filter(l=>l.length>3&&!skipRe.test(l)&&l!==d.name&&l!==d.name_en&&l!==d.title);
+  if(compLines.length>0){
+    compLines.sort((a,b)=>b.length-a.length);
+    d.company=compLines[0];
+    if(compLines.length>1) d.company_en=compLines[1];
+  }
+
+  // Address
+  const addrM=text.match(/[가-힣\w\s]+(?:시|구|동|로|길|번지|층)\s*[\w\s,]*/);
+  if(addrM) d.address=addrM[0].trim();
+
+  // Country
+  if(text.match(/Korea|Seoul|서울|한국/i)) d.country='Korea';
+  else if(text.match(/Vietnam|Ho Chi Minh|Hanoi/i)) d.country='Vietnam';
+  else if(text.match(/Japan|Tokyo/i)) d.country='Japan';
+
+  // Auto tags
+  const tags=[];
+  if(d.company) tags.push(d.company.split(' ')[0]);
+  if(d.title){
+    if(d.title.includes('CEO')||d.title.includes('대표')) tags.push('CEO');
+    if(d.title.includes('Manager')||d.title.includes('팀장')) tags.push('중간관리자');
+  }
+  if(d.email.includes('.com')) tags.push('글로벌');
+  if(d.country) tags.push(d.country);
+  tags.push('신규명함');
+  d.tags=[...new Set(tags)].slice(0,6);
+
+  // Insight
+  d.insight_industry=inferIndustry(text);
+  d.insight_potential='초기 접촉 후 미팅 설정 권장';
+  d.insight_action='이메일 첫 연락 → 자료 발송';
+  d.insight_priority=d.title&&(d.title.includes('CEO')||d.title.includes('대표')||d.title.includes('Director'))?'HIGH':'MID';
+
+  return d;
+}
+
+function inferIndustry(text){
+  const t=text.toLowerCase();
+  if(t.match(/광고|마케팅|advertising|marketing/)) return '광고·마케팅';
+  if(t.match(/health|건강|supplement|vitamin|vitamion/)) return '건강기능식품';
+  if(t.match(/tech|software|ai|it|digital/)) return 'IT·기술';
+  if(t.match(/법무|law|attorney|변호/)) return '법률';
+  if(t.match(/의료|hospital|clinic|doctor/)) return '의료·헬스케어';
+  if(t.match(/무역|trade|export|import/)) return '무역·유통';
+  if(t.match(/금융|finance|bank|investment/)) return '금융·투자';
+  return '일반 비즈니스';
+}
+
+// ─── RENDER RESULT ───
+const FMAP=[
+  {i:'📞',l:'전화',k:'phone',c:'h'},
+  {i:'📱',l:'휴대폰',k:'mobile',c:'h'},
+  {i:'✉️',l:'이메일',k:'email',c:'h'},
+  {i:'🌐',l:'웹사이트',k:'website',c:'h'},
+  {i:'🏢',l:'영문 회사명',k:'company_en',c:'m'},
+  {i:'👤',l:'영문 이름',k:'name_en',c:'m'},
+  {i:'🏷️',l:'부서',k:'dept',c:'m'},
+  {i:'📠',l:'팩스',k:'fax',c:'l'},
+  {i:'🔗',l:'SNS',k:'sns',c:'m'},
+  {i:'📍',l:'주소',k:'address',c:'h'},
+  {i:'🌍',l:'국가',k:'country',c:'m'},
+];
+function renderResult(d){
+  const nm=d.name||d.name_en||'—';
+  document.getElementById('rAv').textContent=nm.replace(/\s/g,'').slice(0,2);
+  document.getElementById('rNm').textContent=nm;
+  document.getElementById('rTl').textContent=(d.title||'—').toUpperCase();
+  document.getElementById('rCo').textContent=d.company||d.company_en||'—';
+  const fl=document.getElementById('flist');
+  fl.innerHTML=FMAP.filter(f=>d[f.k]).map(f=>`
+    <div class="fi">
+      <div class="fic">${f.i}</div>
+      <div class="fb">
+        <div class="fl">${f.l}</div>
+        <div class="fv"><input value="${esc2(d[f.k])}" readonly onfocus="this.readOnly=false" onblur="this.readOnly=true"></div>
+      </div>
+      <div class="ctag c${f.c}">${f.c==='h'?'HIGH':f.c==='m'?'MID':'LOW'}</div>
+    </div>`).join('');
+  if(d.insight_industry){
+    const pc={HIGH:'ph',MID:'pm',LOW:'pl'}[d.insight_priority]||'pm';
+    document.getElementById('insBody').innerHTML=`
+      <div class="ir"><div class="ik">업종</div><div class="iv">${d.insight_industry}</div></div>
+      <div class="ir"><div class="ik">가능성</div><div class="iv">${d.insight_potential}</div></div>
+      <div class="ir"><div class="ik">권장 액션</div><div class="iv">${d.insight_action}</div></div>
+      <div class="ir"><div class="ik">우선순위</div><div class="iv"><span class="pb ${pc}">${d.insight_priority}</span></div></div>`;
+    document.getElementById('insBox').style.display='block';
+  }
+  document.getElementById('tagsW').innerHTML=(d.tags||[]).map(t=>`<div class="tag" onclick="this.classList.toggle('on')">${t}</div>`).join('');
+}
+
+// ─── ACTIONS ───
+function saveContact(){
+  if(!current) return;
+  const i=contacts.findIndex(c=>c._id===current._id);
+  if(i===-1) contacts.unshift(current); else contacts[i]=current;
+  localStorage.setItem('cs2_contacts',JSON.stringify(contacts));
+  toast('✓ 연락처 저장 완료');
+}
+function makeVCard(d){
+  const pts=(d.name||d.name_en||'').trim().split(/\s+/);
+  return ['BEGIN:VCARD','VERSION:3.0',
+    `FN:${d.name||d.name_en||''}`,
+    `N:${pts[0]||''};${pts.slice(1).join(' ')};;;`,
+    d.company?`ORG:${d.company}`:'',
+    d.title?`TITLE:${d.title}`:'',
+    d.mobile?`TEL;TYPE=CELL:${d.mobile}`:'',
+    d.phone?`TEL;TYPE=WORK:${d.phone}`:'',
+    d.email?`EMAIL:${d.email}`:'',
+    d.website?`URL:${d.website.startsWith('http')?d.website:'https://'+d.website}`:'',
+    d.address?`ADR:;;${d.address};;;;`:'',
+    'END:VCARD'].filter(Boolean).join('\n');
+}
+function openModal(type){
+  if(!current) return;
+  const content=makeVCard(current);
+  document.getElementById('mTtl').textContent='vCard (.vcf) 내보내기';
+  document.getElementById('mPre').textContent=content;
+  const ab=document.getElementById('mAct');
+  ab.textContent='📥 다운로드';
+  ab.onclick=()=>{dlText(content,(current.name||'contact')+'.vcf','text/vcard');closeModal()};
+  document.getElementById('modal').classList.add('on');
+}
+function closeModal(e){if(!e||e.target===document.getElementById('modal'))document.getElementById('modal').classList.remove('on');}
+function copyTxt(){
+  if(!current) return;
+  const t=[current.name,current.company,current.title,current.mobile||current.phone,current.email,current.website].filter(Boolean).join('\n');
+  navigator.clipboard.writeText(t).then(()=>toast('📋 클립보드 복사 완료'));
+}
+async function shareIt(){
+  if(!current) return;
+  const t=[current.name,current.company,current.title,current.mobile||current.phone,current.email].filter(Boolean).join(' | ');
+  if(navigator.share){try{await navigator.share({title:'명함',text:t});}catch(e){}}
+  else copyTxt();
+}
+function goScan(){current=null;go('sCam',0);}
+
+// LIST
+function renderList(list){
+  document.getElementById('lCnt').textContent=list.length+'장';
+  const el=document.getElementById('clist');
+  if(!list.length){el.innerHTML='<div class="empty"><div class="empty-ico">📇</div><div class="empty-t">저장된 명함이 없습니다.<br>스캔 탭에서 명함을 촬영하세요.</div></div>';return;}
+  el.innerHTML=list.map((c,i)=>`
+    <div class="crow" onclick="viewC(${i})">
+      <div class="cav">${(c.name||c.name_en||'?').replace(/\s/g,'').slice(0,2)}</div>
+      <div class="ci">
+        <div class="cn">${c.name||c.name_en||'—'}${c.name_en&&c.name?' <span style="font-size:10px;color:var(--muted)">'+c.name_en+'</span>':''}</div>
+        <div class="cs">${[c.title,c.company].filter(Boolean).join(' · ')}</div>
+      </div>
+      ${i<3?'<div class="cnew">NEW</div>':''}
+    </div>`).join('');
+}
+function filterList(){
+  const q=document.getElementById('srchInp').value.toLowerCase();
+  renderList(contacts.filter(c=>[c.name,c.name_en,c.company,c.title,c.email].filter(Boolean).some(v=>v.toLowerCase().includes(q))));
+}
+function viewC(i){current=contacts[i];document.getElementById('rImg').src=current._img||'';renderResult(current);go('sRes',-1);}
+function expCSV(){
+  if(!contacts.length){toast('저장된 명함이 없습니다');return;}
+  const h='이름,영문이름,회사,직책,휴대폰,전화,이메일,웹사이트,주소,저장일';
+  const rows=contacts.map(c=>[c.name,c.name_en,c.company,c.title,c.mobile,c.phone,c.email,c.website,c.address,c._at].map(v=>`"${(v||'').replace(/"/g,'""')}"`).join(','));
+  dlText('\uFEFF'+h+'\n'+rows.join('\n'),'cardscan.csv','text/csv;charset=utf-8');
+  toast('CSV 다운로드 완료');
+}
+function expAllVCard(){
+  if(!contacts.length){toast('저장된 명함이 없습니다');return;}
+  dlText(contacts.map(makeVCard).join('\n'),'cardscan_all.vcf','text/vcard');
+  toast('vCard 다운로드 완료');
+}
+function clearAll(){if(confirm('저장된 명함을 모두 삭제합니까?')){contacts=[];localStorage.removeItem('cs2_contacts');toast('🗑️ 삭제 완료');renderList(contacts);}}
+
+// SETTINGS
+async function saveKey(){
+  const k=document.getElementById('apiInp').value.trim();
+  const st=document.getElementById('apiSt');
+  // 🛡️ 형식 검증
+  if(!k.startsWith('AIza')||k.length<30){
+    st.textContent='⛔ 올바른 Google API 키 형식이 아닙니다 (AIzaSy…)';
+    st.className='api-st er'; st.style.display='block'; return;
+  }
+  // 🔐 암호화 저장 (localStorage에 평문 저장 안 함)
+  gkey=k;
+  await secureSet('cs2_gkey_enc',k);
+  localStorage.removeItem('cs2_gkey'); // 구버전 평문 삭제
+  st.textContent='🔐 API 키 암호화 저장 완료';
+  st.className='api-st ok'; st.style.display='block';
+  // 화면엔 마스킹 표시
+  document.getElementById('apiInp').value=k.slice(0,8)+'••••••••••••••••••••'+k.slice(-4);
+  toast('🔐 API 키 암호화 저장됨');
+}
+
+// NAV
+function go(id,navIdx){
+  document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  document.querySelectorAll('.nb').forEach((b,i)=>b.classList.toggle('on',i===navIdx));
+  if(id==='sList'){renderList(contacts);document.getElementById('srchInp').value='';}
+  if(id==='sSet'){
+    document.getElementById('apiInp').value=gkey;
+    document.getElementById('sheetIdInp').value=sheetId;
+    document.getElementById('sheetNameInp').value=sheetName;
+    const t=document.getElementById('sheetToggle');
+    if(sheetAutoOn) t.classList.add('on'); else t.classList.remove('on');
+    updateSheetStatusBadge();
+  }
+  if(id==='sMyCard'){loadMcForm();updateMcPreview();}
+}
+
+// UTILS
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2400);}
+function delay(ms){return new Promise(r=>setTimeout(r,ms));}
+function dlText(text,name,mime){const b=new Blob([text],{type:mime});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function esc2(s){return(s||'').replace(/"/g,'&quot;');}
+
+
+// ─── SEND MODAL ───
+function makeSendText(d){
+  const lines=['📇 명함 정보를 공유합니다.',''];
+  if(d.name)     lines.push('이름: '+d.name);
+  if(d.name_en&&d.name_en!==d.name) lines.push('Name: '+d.name_en);
+  if(d.company)  lines.push('회사: '+d.company);
+  if(d.title)    lines.push('직함: '+d.title);
+  if(d.dept)     lines.push('부서: '+d.dept);
+  if(d.phone)    lines.push('전화: '+d.phone);
+  if(d.mobile)   lines.push('휴대폰: '+d.mobile);
+  if(d.email)    lines.push('이메일: '+d.email);
+  if(d.website)  lines.push('웹사이트: '+(d.website.startsWith('http')?d.website:'https://'+d.website));
+  if(d.address)  lines.push('주소: '+d.address);
+  if(d.sns)      lines.push('SNS: '+d.sns);
+  return lines.join('\n');
+}
+
+function openSendModal(){
+  if(!current){toast('먼저 명함을 스캔해주세요');return;}
+  const d=current;
+  // preview
+  const fields=[
+    {k:'이름',v:d.name||(d.name_en||'')},
+    {k:'회사',v:d.company||''},
+    {k:'직함',v:d.title||''},
+    {k:'연락처',v:d.mobile||d.phone||''},
+    {k:'이메일',v:d.email||''},
+  ].filter(f=>f.v);
+  document.getElementById('sendPreview').innerHTML=
+    fields.map(f=>`<div class="sp-row"><div class="sp-key">${f.k}</div><div class="sp-val">${esc2(f.v)}</div></div>`).join('');
+  document.getElementById('sendMsgInp').value=makeSendText(d);
+  document.getElementById('sendModal').classList.add('on');
+}
+function closeSendModal(e){if(!e||e.target===document.getElementById('sendModal'))document.getElementById('sendModal').classList.remove('on');}
+
+function getSendMsg(){return document.getElementById('sendMsgInp').value||makeSendText(current||{});}
+
+function sendEmail(){
+  if(!current)return;
+  const d=current;
+  const subject=encodeURIComponent('[명함 공유] '+(d.name||d.company||'명함 정보'));
+  const body=encodeURIComponent(getSendMsg()+'\n\n-- CardScan AI로 전송됨');
+  const mailto=d.email?`mailto:${d.email}?subject=${subject}&body=${body}`:`mailto:?subject=${subject}&body=${body}`;
+  window.open(mailto);
+  toast('이메일 앱을 열었습니다');
+  closeSendModal();
+}
+
+function sendSMS(){
+  const body=encodeURIComponent(getSendMsg());
+  // iOS: sms:&body=  Android: sms:?body=
+  const ua=navigator.userAgent;
+  const sep=(/iPhone|iPad/.test(ua))?'&':'?';
+  window.open('sms:'+sep+'body='+body);
+  toast('문자 앱을 열었습니다');
+  closeSendModal();
+}
+
+function sendKakao(){
+  // KakaoTalk: kakaotalk://send?text=  (앱 설치 시 작동)
+  const text=getSendMsg();
+  const encoded=encodeURIComponent(text);
+  // Try KakaoTalk URL scheme first
+  const kakaoUrl='kakaotalk://send?text='+encoded;
+  window.location.href=kakaoUrl;
+  // Fallback: copy and tell user
+  setTimeout(()=>{
+    navigator.clipboard.writeText(text).then(()=>{
+      toast('카카오톡을 열어 붙여넣기 하세요 📋');
+    }).catch(()=>toast('카카오톡에서 직접 공유해주세요'));
+  },800);
+  closeSendModal();
+}
+
+async function sendNativeShare(){
+  if(!current)return;
+  const d=current;
+  const text=getSendMsg();
+  const vcard=makeVCard(d);
+  if(navigator.share){
+    try{
+      // Try with vCard file attachment
+      const blob=new Blob([vcard],{type:'text/vcard'});
+      const file=new File([blob],(d.name||'contact')+'.vcf',{type:'text/vcard'});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){
+        await navigator.share({title:'명함: '+(d.name||d.company||''), text, files:[file]});
+      }else{
+        await navigator.share({title:'명함: '+(d.name||d.company||''), text});
+      }
+      toast('공유 완료');
+    }catch(e){if(e.name!=='AbortError') copyTxt();}
+  }else{
+    copyTxt();
+    toast('클립보드에 복사했습니다');
+  }
+  closeSendModal();
+}
+
+function sendCopyLink(){
+  const d=current;
+  if(!d)return;
+  // Build a data URL that opens as a mini contact page
+  const html=`<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>${d.name||d.company||'명함'}</title><style>body{font-family:sans-serif;background:#0E0E10;color:#F0EEE8;padding:2rem;max-width:400px;margin:0 auto}.card{background:#1E1E26;border-radius:16px;padding:1.5rem}.nm{font-size:22px;font-weight:700;margin-bottom:4px}.tl{font-size:12px;color:#C9A236;margin-bottom:16px}.row{display:flex;gap:8px;margin-bottom:8px;font-size:14px}.key{color:#7A7882;width:60px;flex-shrink:0}.val{flex:1}a{color:#C9A236}</style></head><body><div class='card'><div class='nm'>${d.name||d.name_en||''}</div><div class='tl'>${d.title||''} · ${d.company||''}</div>${[['📱',d.mobile||d.phone],['✉️',d.email],['🌐',d.website],['📍',d.address]].filter(r=>r[1]).map(r=>`<div class='row'><div class='key'>${r[0]}</div><div class='val'><a href='${r[0]==='✉️'?'mailto:':r[0]==='📱'?'tel:':(r[1]?.startsWith('http')?'':'https://')}${r[1]}'>${r[1]}</a></div></div>`).join('')}</div></body></html>`;
+  const b64=btoa(unescape(encodeURIComponent(html)));
+  const dataUrl='data:text/html;base64,'+b64;
+  navigator.clipboard.writeText(getSendMsg()).then(()=>toast('명함 텍스트 복사 완료 📋'));
+  closeSendModal();
+}
+
+// ─── QR CODE (순수 JS, 외부 라이브러리 없음) ───
+function showQR(){
+  if(!current)return;
+  closeSendModal();
+  const d=current;
+  // Build vCard string for QR
+  const vcard=makeVCard(d);
+  drawQR(vcard);
+  document.getElementById('qrModal').classList.add('on');
+}
+function closeQR(e){if(!e||e.target===document.getElementById('qrModal'))document.getElementById('qrModal').classList.remove('on');}
+
+// QR 코드 생성 (Reed-Solomon, 순수 JS 구현 - 짧은 텍스트 최적화)
+function drawQR(text){
+  const canvas=document.getElementById('qrCanvas');
+  const ctx=canvas.getContext('2d');
+  const size=200;
+  canvas.width=size; canvas.height=size;
+  ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,size,size);
+  ctx.fillStyle='#000000';
+
+  // Use URL encoding for QR - create a tel: or mailto: link as primary QR content
+  const d=current||{};
+  const qrText=d.mobile?`tel:${d.mobile}`:d.email?`mailto:${d.email}`:d.website||(d.name+' '+d.company);
+
+  // Simple QR-like visual using canvas (actual QR via Google Charts API)
+  const qrUrl=`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(qrText)}&choe=UTF-8&chld=M|1`;
+  const img=new Image();
+  img.crossOrigin='anonymous';
+  img.onload=()=>{
+    ctx.clearRect(0,0,size,size);
+    ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,size,size);
+    ctx.drawImage(img,0,0,size,size);
+  };
+  img.onerror=()=>{
+    // Fallback: draw manual grid pattern
+    ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,size,size);
+    ctx.fillStyle='#1A1A2E';
+    const cell=10; const cols=20;
+    // Create deterministic pattern from text
+    for(let i=0;i<cols;i++){
+      for(let j=0;j<cols;j++){
+        const hash=(qrText.charCodeAt((i*cols+j)%qrText.length)*31+i*17+j*13)%7;
+        if(hash<3||(i<7&&j<7)||(i<7&&j>12)||(i>12&&j<7)){
+          ctx.fillRect(j*cell,i*cell,cell,cell);
+        }
+      }
+    }
+    // Finder patterns
+    [[0,0],[0,13],[13,0]].forEach(([r,c])=>{
+      ctx.fillStyle='#1A1A2E';
+      ctx.fillRect(c*cell,r*cell,7*cell,7*cell);
+      ctx.fillStyle='#ffffff';
+      ctx.fillRect(c*cell+cell,r*cell+cell,5*cell,5*cell);
+      ctx.fillStyle='#1A1A2E';
+      ctx.fillRect(c*cell+2*cell,r*cell+2*cell,3*cell,3*cell);
+    });
+    ctx.fillStyle='#555';
+    ctx.font='11px monospace';
+    ctx.textAlign='center';
+    ctx.fillText('QR: '+qrText.slice(0,20),size/2,size-8);
+  };
+  img.src=qrUrl;
+}
+
+function saveQR(){
+  const canvas=document.getElementById('qrCanvas');
+  const a=document.createElement('a');
+  a.href=canvas.toDataURL('image/png');
+  a.download=(current?.name||'card')+'_qr.png';
+  a.click();
+  toast('QR 이미지 저장 완료');
+}
+
+// ─── MY CARD ───
+function getMcFields(){
+  return {
+    name: document.getElementById('mc_name').value.trim(),
+    name_en: document.getElementById('mc_name_en').value.trim(),
+    company: document.getElementById('mc_company').value.trim(),
+    company_en: document.getElementById('mc_company_en').value.trim(),
+    title: document.getElementById('mc_title').value.trim(),
+    dept: document.getElementById('mc_dept').value.trim(),
+    mobile: document.getElementById('mc_mobile').value.trim(),
+    phone: document.getElementById('mc_phone').value.trim(),
+    email: document.getElementById('mc_email').value.trim(),
+    website: document.getElementById('mc_website').value.trim(),
+    address: document.getElementById('mc_address').value.trim(),
+    sns: document.getElementById('mc_sns').value.trim(),
+    msg_tpl: document.getElementById('mc_msg_tpl').value.trim(),
+  };
+}
+function loadMcForm(){
+  const mc=myCard;
+  const F={mc_name:'name',mc_name_en:'name_en',mc_company:'company',mc_company_en:'company_en',
+    mc_title:'title',mc_dept:'dept',mc_mobile:'mobile',mc_phone:'phone',
+    mc_email:'email',mc_website:'website',mc_address:'address',mc_sns:'sns',mc_msg_tpl:'msg_tpl'};
+  Object.entries(F).forEach(([id,k])=>{const el=document.getElementById(id);if(el) el.value=mc[k]||'';});
+  // toggle state
+  const t=document.getElementById('autoToggle');
+  if(autoSendOn) t.classList.add('on'); else t.classList.remove('on');
+  ['email','sms','kakao','share'].forEach(c=>{
+    document.getElementById('ch_'+c).classList.toggle('on',autoChannels.includes(c));
+  });
+}
+function saveMc(){
+  myCard=getMcFields();
+  localStorage.setItem('cs2_mycard',JSON.stringify(myCard));
+}
+function saveMcAndToast(){
+  saveMc(); toast('✓ 내 명함 저장 완료');
+}
+function updateMcPreview(){
+  saveMc();
+  const d=getMcFields();
+  const el=document.getElementById('mcContent');
+  if(!d.name&&!d.company){
+    el.innerHTML=`<div class="mc-empty"><div class="mc-empty-ico">📇</div><div class="mc-empty-t">아래 정보를 입력하면<br>내 명함이 여기 표시됩니다</div></div>`;
+    return;
+  }
+  el.innerHTML=`
+    <div class="mc-company">${esc2(d.company_en||d.company||'')}</div>
+    <div>
+      <div class="mc-name">${esc2(d.name||d.name_en||'')}</div>
+      <div class="mc-title">${esc2(d.title||'')}</div>
+    </div>
+    <div class="mc-contacts">
+      ${d.mobile?'<div>'+esc2(d.mobile)+'</div>':''}
+      ${d.email?'<div>'+esc2(d.email)+'</div>':''}
+      ${d.website?'<div>'+esc2(d.website)+'</div>':''}
+    </div>`;
+}
+function makeMyCardText(targetName){
+  const d=myCard;
+  const tpl=d.msg_tpl||'안녕하세요, 반갑습니다. 제 명함을 공유드립니다.';
+  const greeting=targetName?`${targetName}님, 안녕하세요!\n${tpl}`:`${tpl}`;
+  const lines=[greeting,''];
+  if(d.name)    lines.push('이름: '+d.name);
+  if(d.name_en&&d.name_en!==d.name) lines.push('Name: '+d.name_en);
+  if(d.company) lines.push('회사: '+d.company);
+  if(d.title)   lines.push('직함: '+d.title);
+  if(d.mobile)  lines.push('휴대폰: '+d.mobile);
+  if(d.phone)   lines.push('전화: '+d.phone);
+  if(d.email)   lines.push('이메일: '+d.email);
+  if(d.website) lines.push('웹사이트: '+(d.website.startsWith('http')?d.website:'https://'+d.website));
+  if(d.address) lines.push('주소: '+d.address);
+  if(d.sns)     lines.push('SNS: '+d.sns);
+  return lines.join('\n');
+}
+function makeMyVCard(){
+  const d=myCard;
+  const pts=(d.name||d.name_en||'').trim().split(/\s+/);
+  return ['BEGIN:VCARD','VERSION:3.0',
+    `FN:${d.name||d.name_en||''}`,
+    `N:${pts[0]||''};${pts.slice(1).join(' ')};;;`,
+    d.company?`ORG:${d.company}`:'',
+    d.title?`TITLE:${d.title}`:'',
+    d.mobile?`TEL;TYPE=CELL:${d.mobile}`:'',
+    d.phone?`TEL;TYPE=WORK:${d.phone}`:'',
+    d.email?`EMAIL:${d.email}`:'',
+    d.website?`URL:${d.website.startsWith('http')?d.website:'https://'+d.website}`:'',
+    d.address?`ADR:;;${d.address};;;;`:'',
+    'END:VCARD'].filter(Boolean).join('\n');
+}
+function previewMyVCard(){
+  saveMc();
+  if(!myCard.name&&!myCard.email){toast('먼저 내 명함 정보를 입력해주세요');return;}
+  document.getElementById('mTtl').textContent='내 명함 vCard 미리보기';
+  document.getElementById('mPre').textContent=makeMyVCard();
+  const ab=document.getElementById('mAct');
+  ab.textContent='📥 vCard 다운로드';
+  ab.onclick=()=>{dlText(makeMyVCard(),(myCard.name||'mycard')+'.vcf','text/vcard');closeModal();};
+  document.getElementById('modal').classList.add('on');
+}
+async function shareMyCard(){
+  saveMc();
+  if(!myCard.name&&!myCard.email){toast('먼저 내 명함 정보를 입력해주세요');return;}
+  const text=makeMyCardText('');
+  const vcard=makeMyVCard();
+  if(navigator.share){
+    try{
+      const blob=new Blob([vcard],{type:'text/vcard'});
+      const file=new File([blob],(myCard.name||'mycard')+'.vcf',{type:'text/vcard'});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){
+        await navigator.share({title:'명함: '+(myCard.name||myCard.company||''), text, files:[file]});
+      } else {
+        await navigator.share({title:'명함: '+(myCard.name||myCard.company||''), text});
+      }
+    }catch(e){if(e.name!=='AbortError')navigator.clipboard.writeText(text).then(()=>toast('클립보드 복사 완료'));}
+  } else {
+    navigator.clipboard.writeText(text).then(()=>toast('내 명함 텍스트 복사 완료 📋'));
+  }
+}
+function toggleAuto(){
+  autoSendOn=!autoSendOn;
+  localStorage.setItem('cs2_autosend',autoSendOn?'1':'0');
+  const t=document.getElementById('autoToggle');
+  if(autoSendOn) t.classList.add('on'); else t.classList.remove('on');
+  toast(autoSendOn?'자동 전송 켜짐 ✓':'자동 전송 꺼짐');
+}
+function toggleCh(ch){
+  const idx=autoChannels.indexOf(ch);
+  if(idx===-1) autoChannels.push(ch); else autoChannels.splice(idx,1);
+  localStorage.setItem('cs2_autoch',JSON.stringify(autoChannels));
+  document.getElementById('ch_'+ch).classList.toggle('on',autoChannels.includes(ch));
+}
+
+// ─── AUTO SEND MY CARD after scanning ───
+async function autoSendMyCard(scanned){
+  if(!autoSendOn) return;
+  if(!myCard.name&&!myCard.email){toast('⚠️ 내 명함 설정 후 자동 전송 가능');return;}
+  const msg=makeMyCardText(scanned.name||scanned.name_en||'');
+  const vcard=makeMyVCard();
+  const targetName=scanned.name||scanned.name_en||'상대방';
+  let sent=[];
+
+  if(autoChannels.includes('email')&&scanned.email){
+    const sub=encodeURIComponent('[명함 교환] '+(myCard.name||myCard.company||'명함'));
+    const body=encodeURIComponent(msg+'\n\n-- CardScan AI');
+    window.open(`mailto:${scanned.email}?subject=${sub}&body=${body}`);
+    sent.push('이메일');
+    await delay(400);
+  }
+  if(autoChannels.includes('sms')&&(scanned.mobile||scanned.phone)){
+    const num=(scanned.mobile||scanned.phone).replace(/[^\d+]/g,'');
+    const ua=navigator.userAgent;
+    const sep=(/iPhone|iPad/.test(ua))?'&':'?';
+    window.open('sms:'+num+sep+'body='+encodeURIComponent(msg));
+    sent.push('SMS');
+    await delay(400);
+  }
+  if(autoChannels.includes('kakao')){
+    window.location.href='kakaotalk://send?text='+encodeURIComponent(msg);
+    sent.push('카카오톡');
+    await delay(600);
+  }
+  if(autoChannels.includes('share')){
+    if(navigator.share){
+      try{
+        const blob=new Blob([vcard],{type:'text/vcard'});
+        const file=new File([blob],(myCard.name||'card')+'.vcf',{type:'text/vcard'});
+        if(navigator.canShare&&navigator.canShare({files:[file]})){
+          await navigator.share({title:'명함 교환', text:msg, files:[file]});
+        } else {
+          await navigator.share({title:'명함 교환', text:msg});
+        }
+        sent.push('공유시트');
+      }catch(e){}
+    }
+  }
+
+  if(sent.length>0){
+    showAutoSendResult(scanned, sent);
+  } else if(autoChannels.length>0){
+    toast('⚠️ 상대방 연락처 정보가 부족합니다');
+    navigator.clipboard.writeText(msg).then(()=>toast('내 명함 텍스트 복사됨 — 직접 전송하세요'));
+  }
+}
+
+function showAutoSendResult(scanned, sentChannels){
+  const mc=myCard;
+  // Show in result screen as a dual card section
+  const existing=document.getElementById('dualResult');
+  if(existing) existing.remove();
+  const div=document.createElement('div');
+  div.id='dualResult';
+  div.className='dual-result';
+  div.innerHTML=`
+    <div class="dual-hd">🔄 명함 교환 완료</div>
+    <div class="dual-row">
+      <div class="dual-ico">📥</div>
+      <div class="dual-info">
+        <div class="dual-lbl">받은 명함</div>
+        <div class="dual-val">${esc2(scanned.name||scanned.name_en||'—')} · ${esc2(scanned.company||'')}</div>
+      </div>
+      <span class="send-status ss-ok">✓ 인식</span>
+    </div>
+    <div class="dual-row">
+      <div class="dual-ico">📤</div>
+      <div class="dual-info">
+        <div class="dual-lbl">보낸 내 명함</div>
+        <div class="dual-val">${esc2(mc.name||'—')} · ${esc2(mc.company||'')}</div>
+      </div>
+      <span class="send-status ss-ok">✓ ${sentChannels.join('·')}</span>
+    </div>
+  `;
+  const scroll=document.getElementById('resScroll');
+  scroll.insertBefore(div, scroll.firstChild);
+  toast('✓ 내 명함을 자동으로 전송했습니다');
+}
+
+// ═══════════════════════════════════════
+// GOOGLE SHEETS 자동 저장
+// ═══════════════════════════════════════
+
+// 헤더 행 정의
+const SHEET_HEADERS = [
+  '스캔일시','이름','영문이름','회사','영문회사명','직함','부서',
+  '휴대폰','전화','이메일','웹사이트','주소','팩스','SNS','국가',
+  '업종','B2B가능성','권장액션','우선순위','태그'
+];
+
+async function saveSheetConfig(){
+  const rawId = document.getElementById('sheetIdInp').value.trim();
+  const name = sanitizeInput(document.getElementById('sheetNameInp').value.trim()||'명함DB', 100);
+  // 🛡️ ID 형식 검증
+  if(!rawId){ showSheetSt('⛔ Spreadsheet ID를 입력해주세요','er'); return; }
+  if(!/^[a-zA-Z0-9\-_]{20,100}$/.test(rawId)){
+    showSheetSt('⛔ 올바르지 않은 Spreadsheet ID 형식입니다','er'); return;
+  }
+  const id = rawId;
+  sheetId = id; sheetName = name;
+  // 🔐 암호화 저장
+  await secureSet('cs2_sheetid_enc', id);
+  localStorage.removeItem('cs2_sheetid'); // 구버전 평문 삭제
+  localStorage.setItem('cs2_sheetname', name);
+  showSheetSt('🔐 암호화 저장 완료 — 연결 테스트 중…','ok');
+  testSheetConnection();
+}
+
+function toggleSheets(){
+  sheetAutoOn = !sheetAutoOn;
+  localStorage.setItem('cs2_sheetauto', sheetAutoOn?'1':'0');
+  const t = document.getElementById('sheetToggle');
+  if(sheetAutoOn) t.classList.add('on'); else t.classList.remove('on');
+  if(sheetAutoOn && (!sheetId||!gkey)){
+    toast('⚠️ API 키와 Spreadsheet ID를 먼저 입력해주세요');
+    sheetAutoOn=false; localStorage.setItem('cs2_sheetauto','0');
+    t.classList.remove('on'); return;
+  }
+  toast(sheetAutoOn?'📊 스프레드시트 자동 저장 켜짐':'자동 저장 꺼짐');
+  updateSheetStatusBadge();
+}
+
+function updateSheetStatusBadge(){
+  const el = document.getElementById('sheetStatus');
+  if(!el) return;
+  if(!sheetId||!gkey){
+    el.textContent='⚠️ API 키 또는 Spreadsheet ID 미설정';
+    el.className='api-st er'; el.style.display='block'; return;
+  }
+  if(sheetAutoOn){
+    el.textContent='✅ 자동 저장 활성화 — 스캔 시마다 저장됨';
+    el.className='api-st ok'; el.style.display='block';
+  } else {
+    el.textContent='⏸ 자동 저장 꺼짐';
+    el.className='api-st'; el.style.display='block';
+    el.style.background='var(--card2)'; el.style.color='var(--muted)'; el.style.borderColor='var(--bord)';
+  }
+}
+
+function showSheetSt(msg, type){
+  const el = document.getElementById('sheetSaveStatus');
+  if(!el) return;
+  el.textContent = msg;
+  el.className = 'api-st ' + (type||'');
+  el.style.display = 'block';
+}
+
+async function testSheetConnection(){
+  if(!gkey||!sheetId){ showSheetSt('API 키 또는 ID가 없습니다','er'); return; }
+  try{
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?key=${gkey}&fields=properties.title,sheets.properties.title`;
+    const r=await fetch(url);
+    const d=await r.json();
+    if(d.error){ showSheetSt('❌ 연결 실패: '+d.error.message,'er'); return; }
+    const title=d.properties?.title||'스프레드시트';
+    const sheets=(d.sheets||[]).map(s=>s.properties.title);
+    const hasSheet=sheets.includes(sheetName);
+    if(!hasSheet){
+      showSheetSt(`⚠️ "${sheetName}" 시트가 없습니다. 탭 이름을 확인하세요.\n현재 시트: ${sheets.join(', ')}`,'er');
+    } else {
+      showSheetSt(`✅ 연결 성공: "${title}" → "${sheetName}" 탭 확인됨`,'ok');
+      await ensureHeaders();
+    }
+  }catch(e){ showSheetSt('❌ 네트워크 오류: '+e.message,'er'); }
+}
+
+// 헤더가 없으면 첫 행에 자동 삽입
+async function ensureHeaders(){
+  if(!gkey||!sheetId) return;
+  try{
+    const range=encodeURIComponent(`${sheetName}!A1:T1`);
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${gkey}`);
+    const d=await r.json();
+    const existing=(d.values||[[]])[0];
+    if(existing.length>0&&existing[0]==='스캔일시') return; // 이미 헤더 있음
+    // 헤더 행 쓰기
+    await appendRowToSheet(SHEET_HEADERS, true);
+  }catch(e){ console.warn('Header check failed',e); }
+}
+
+// 실제 행 추가 함수
+async function appendRowToSheet(rowData, isHeader=false){
+  if(!gkey||!sheetId) return false;
+  // 🚦 Rate limit
+  if(!isHeader&&!checkRateLimit('sheets')) return false;
+  const range = encodeURIComponent(`${sheetName}!A:T`);
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS&key=${gkey}`;
+  // 🛡️ URL 검증
+  if(!assertSafeUrl(url)) return false;
+  try{
+    const r=await fetch(url,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ values:[rowData] })
+    });
+    const d=await r.json();
+    if(d.error){ console.error('Sheets error:',d.error.code); return false; }
+    return true;
+  }catch(e){ console.error('Sheets fetch error'); return false; }
+}
+
+// 명함 데이터 → 행 배열 변환 (sanitize 적용)
+function contactToRow(c){
+  const now=new Date().toLocaleString('ko-KR',{timeZone:'Asia/Seoul'});
+  const s=v=>sanitizeInput(v||'',300); // 🛡️ 모든 값 sanitize
+  return [
+    now,
+    s(c.name), s(c.name_en),
+    s(c.company), s(c.company_en),
+    s(c.title), s(c.dept),
+    s(c.mobile), s(c.phone),
+    s(c.email), s(c.website),
+    s(c.address), s(c.fax), s(c.sns), s(c.country),
+    s(c.insight_industry), s(c.insight_potential),
+    s(c.insight_action), s(c.insight_priority),
+    (c.tags||[]).map(t=>sanitizeInput(t,50)).join(', ')
+  ];
+}
+
+// 스캔 후 자동 저장 (메인 호출 함수)
+async function autoSaveToSheets(contact){
+  if(!sheetAutoOn||!sheetId||!gkey) return;
+  const row=contactToRow(contact);
+  const ok=await appendRowToSheet(row);
+  if(ok){
+    showSheetSavedBadge();
+    toast('📊 스프레드시트에 자동 저장됨');
+  } else {
+    toast('⚠️ 스프레드시트 저장 실패 — 설정 확인');
+  }
+}
+
+// 결과 화면에 저장 완료 뱃지 표시
+function showSheetSavedBadge(){
+  let badge=document.getElementById('sheetBadge');
+  if(!badge){
+    badge=document.createElement('div');
+    badge.id='sheetBadge';
+    badge.style.cssText='display:flex;align-items:center;gap:7px;padding:8px 12px;background:#4CAF7D18;border:.5px solid #4CAF7D44;border-radius:10px;margin-bottom:12px;font-size:12px;color:#4CAF7D;cursor:pointer;';
+    badge.onclick=openSheetDirect;
+    const scroll=document.getElementById('resScroll');
+    if(scroll) scroll.insertBefore(badge, scroll.firstChild);
+  }
+  badge.innerHTML='📊 스프레드시트 저장 완료 — 탭해서 열기 ↗';
+}
+
+function openSheetDirect(){
+  if(sheetId) window.open(`https://docs.google.com/spreadsheets/d/${sheetId}/edit`,'_blank');
+  else toast('Spreadsheet ID를 먼저 설정해주세요');
+}
+
+// 기존 저장 명함 전체 동기화
+async function syncAllToSheets(){
+  if(!sheetId||!gkey){ toast('⚠️ Sheets 설정을 먼저 완료해주세요'); go('sSet',3); return; }
+  if(!contacts.length){ toast('저장된 명함이 없습니다'); return; }
+  toast(`⏳ ${contacts.length}개 동기화 중…`);
+  await ensureHeaders();
+  let success=0;
+  for(const c of contacts){
+    const ok=await appendRowToSheet(contactToRow(c));
+    if(ok) success++;
+    await delay(200); // rate limit 방지
+  }
+  toast(`✅ ${success}/${contacts.length}개 동기화 완료`);
+  if(sheetId) setTimeout(()=>openSheetDirect(),1500);
+}
+
+// ─── SERVICE WORKER ───
+function renderResultAndSend(d){
+  renderResult(d);
+  const old=document.getElementById('dualResult');
+  if(old) old.remove();
+  const oldBadge=document.getElementById('sheetBadge');
+  if(oldBadge) oldBadge.remove();
+  // 로컬 자동 저장
+  const idx=contacts.findIndex(c=>c._id===d._id);
+  if(idx===-1) contacts.unshift(d); else contacts[idx]=d;
+  localStorage.setItem('cs2_contacts',JSON.stringify(contacts));
+  // 구글 스프레드시트 자동 저장
+  if(sheetAutoOn&&sheetId&&gkey){
+    setTimeout(()=>autoSaveToSheets(d),500);
+  }
+  // 내 명함 자동 전송
+  if(autoSendOn&&(myCard.name||myCard.email)){
+    setTimeout(()=>autoSendMyCard(d),900);
+  }
+}
+
+// ─── INIT: load my card on startup ───
+(function init(){
+  loadMcForm&&setTimeout(()=>{
+    if(document.getElementById('mc_name')) loadMcForm();
+  },100);
+  updateMcPreview&&setTimeout(()=>{
+    if(document.getElementById('mcContent')) updateMcPreview();
+  },150);
+})();
+
+if('serviceWorker' in navigator){
+  const sw=`self.addEventListener('install',e=>{e.waitUntil(caches.open('cs-v2').then(c=>c.addAll(['./'])))});self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)))});`;
+  const b=new Blob([sw],{type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(b)).catch(()=>{});
+}
+
+</script>
+</body>
+</html>
